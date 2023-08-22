@@ -1,6 +1,11 @@
-docs/images/extra
-derunner.config.yaml
+# DeSOTA
+services.config.yaml
 user.config.yaml
+build/
+dist/
+
+# Everything Else
+docs/images/extra
 .vscode
 neuralqa/server/test_query.py
 
@@ -16,7 +21,6 @@ __pycache__/
 .Python
 # build/
 develop-eggs/
-dist/
 downloads/
 eggs/
 .eggs/
