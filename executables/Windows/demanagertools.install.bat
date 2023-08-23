@@ -37,12 +37,15 @@ if "%version%" == "10.0" GOTO set_ansi_colors
 if "%version%" == "11.0" GOTO set_ansi_colors
 GOTO end_ansi_colors
 :set_ansi_colors
-set header=[4;95m
-set info_h1=[93m
-set info_h2=[33m
-set sucess=[7;32m
-set fail=[7;31m
-set ansi_end=[0m
+for /F %%a in ('echo prompt $E ^| cmd') do (
+  set "ESC=%%a"
+)
+set header=%ESC%[4;95m
+set info_h1=%ESC%[93m
+set info_h2=%ESC%[33m
+set sucess=%ESC%[7;32m
+set fail=%ESC%[7;31m
+set ansi_end=%ESC%[0m
 :end_ansi_colors
 
 :: IPUT ARGS - /reinstall="overwrite model + remove service" ; /startmodel="Start Model Service"
@@ -93,6 +96,8 @@ IF %PROCESSOR_ARCHITECTURE%==AMD64 powershell -command "Invoke-WebRequest -Uri %
 IF %PROCESSOR_ARCHITECTURE%==x86 powershell -command "Invoke-WebRequest -Uri %python32% -OutFile ~\python3_installer.exe" && start /B /WAIT %UserProfile%\python3_installer.exe /quiet InstallAllUsers=0 PrependPath=1 Include_test=0 TargetDir=%UserProfile%\Desota\Portables\python3 && del %UserProfile%\python3_installer.exe && goto skipinstallpython
 IF NOT EXIST %UserProfile%\Desota\Portables\python3 (
     ECHO %fail%Python Instalation Fail - check https://www.python.org/downloads/windows/%ansi_end%
+    PAUSE
+    GOTO EOF_IN
 )
 ELSE (
     ECHO %sucess%Python Instalation Sucess%ansi_end%
@@ -148,9 +153,11 @@ call pip install -r requirements.txt
 ECHO %info_h1%Step 7 - Create APP .EXE%ansi_end%
 :: call pyinstaller -w -F --uac-admin -i "Assets/icon.ico" -n "DeSOTA - Manager Tools" app.py :: DEPRECATED
 :: CREATE SED FILE - https://ss64.com/nt/iexpress-sed.html
-mkdir %manager_path_install%\dist
+ECHO %info_h2%Manipulation .SED file...%ansi_end%
+call %manager_path_install%\env\python %manager_path_install%\Tools\manipulate_sed_file.py
 :: retrieved from https://stackoverflow.com/a/26797258
 ECHO %info_h2%Creating App .EXE file...%ansi_end%
+mkdir %manager_path_install%\dist
 call iexpress /N %manager_path_install%\executables\Windows\demanagertools.iexpress.SED 
 ::TODO - Install ResourceHacker.exe - http://www.angusj.com/resourcehacker/#download
 IF EXIST %UserProfile%\Desota\Portables\ressourcehacker\ResourceHacker.exe (
