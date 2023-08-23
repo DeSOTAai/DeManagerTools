@@ -1,3 +1,2 @@
 tk
 pystray
-pyinstaller
