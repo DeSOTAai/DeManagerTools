@@ -164,14 +164,16 @@ IF EXIST %UserProfile%\Desota\Portables\ressourcehacker\ResourceHacker.exe (
     goto EO_ressourcehacker 
 )
 ECHO %info_h2%Installing RessourceHacker - Edit .EXE icon...%ansi_end%
-call powershell -command "Invoke-WebRequest -Uri %ressourcehacker% -OutFile ~\Desota\Portables\ressourcehacker.zip" &&  tar -xzvf %UserProfile%\Desota\Portables\ressourcehacker.zip -C %UserProfile%\Desota\Portables\ressourcehacker --strip-components 1 && del %UserProfile%\Desota\Portables\nssm.zip
+mkdir %UserProfile%\Desota\Portables\ressourcehacker 
+call powershell -command "Invoke-WebRequest -Uri %ressourcehacker% -OutFile ~\Desota\Portables\ressourcehacker.zip" &&  tar -xzvf %UserProfile%\Desota\Portables\ressourcehacker.zip -C %UserProfile%\Desota\Portables\ressourcehacker && del %UserProfile%\Desota\Portables\ressourcehacker.zip
+
 ::TODO - edit following paths
 :EO_ressourcehacker
 ECHO %info_h2%Editing .EXE icon...%ansi_end%
 call %UserProfile%\Desota\Portables\ressourcehacker\ResourceHacker.exe -open "%UserProfile%\Desota\DeManagerTools\dist\Desota-ManagerTools.exe" -save "%UserProfile%\Desota\DeManagerTools\dist\Desota-ManagerTools.exe" -action addskip -res "%UserProfile%\Desota\DeManagerTools\Assets\icon.ico" -mask ICONGROUP,MAINICON,
 
 ECHO %info_h2%Creating APP Desktop Shortcut...%ansi_end%
-call copy "%manager_path_install%\dist\DeSOTA - Manager Tools.exe" %UserProfile%\desktop
+call copy "%manager_path_install%\dist\Desota-ManagerTools.exe %UserProfile%\desktop
 
 ECHO %sucess%Step 8 - Starting DeSOTA - Manager Tools%ansi_end%
 call %manager_start%
