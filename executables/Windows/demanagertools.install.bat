@@ -26,7 +26,7 @@ set miniconda64=https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x8
 set miniconda32=https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86.exe
 set ressourcehacker=http://www.angusj.com/resourcehacker/resource_hacker.zip
 
-:: - .bat ANSI Colored CLS
+:: - .bat ANSI Colored CLI
 set header=
 set info=
 set sucess=
@@ -74,7 +74,7 @@ ELSE (
 
 ECHO %info_h1%Step 2 - Create Project Folder%ansi_end%
 :: Create Project Folder
-mkdir %manager_path_install%
+mkdir %manager_path_install% > NUL
 call cd %manager_path_install%
 
 ECHO %info_h1%Step 3 - Install Python%ansi_end%
@@ -114,7 +114,7 @@ IF NOT errorlevel 1 (
 )
 :: PORTABLE GIT MODEL CLONE
 :: Install Portable Git
-call mkdir %UserProfile%\Desota\Portables
+call mkdir %UserProfile%\Desota\Portables > NUL
 IF EXIST %UserProfile%\Desota\Portables\PortableGit GOTO clonerep
 
 %info_h2%Downloading Portable Git...%ansi_end%
@@ -123,12 +123,12 @@ IF %PROCESSOR_ARCHITECTURE%==x86 powershell -command "Invoke-WebRequest -Uri %gi
 
 :clonerep
 ECHO %info_h2%Cloning Project Repository...%ansi_end%
-call %UserProfile%\Desota\Portables\PortableGit\bin\git.exe clone --branch %manager_git_branch% %manager_git% .
+call %UserProfile%\Desota\Portables\PortableGit\bin\git.exe clone --branch %manager_git_branch% %manager_git% . > NUL
 :endgitclonemodel
 
 ECHO %info_h1%Step 5 - Create Virtual Environment for Project%ansi_end%
 :: Move into Project Folder
-call mkdir %UserProfile%\Desota\Portables
+call mkdir %UserProfile%\Desota\Portables > NUL
 IF NOT EXIST %UserProfile%\Desota\Portables\miniconda3\condabin\conda.bat goto installminiconda
 :: Install Conda if Required
 goto skipinstallminiconda
@@ -140,13 +140,13 @@ IF %PROCESSOR_ARCHITECTURE%==x86 powershell -command "Invoke-WebRequest -Uri %mi
 
 
 :: Create/Activate Conda Virtual Environment
-ECHO %info_h2%Creating MiniConda Environment...%ansi_end%
-call %UserProfile%\Desota\Portables\miniconda3\condabin\conda create --prefix ./env python=3.11 -y
+ECHO %info_h2%Creating MiniConda Environment...%ansi_end% 
+call %UserProfile%\Desota\Portables\miniconda3\condabin\conda create --prefix ./env python=3.11 -y > NUL
 call %UserProfile%\Desota\Portables\miniconda3\condabin\conda activate ./env
 
 :: Install required Libraries
 ECHO %info_h1%Step 6 - Install Project Libraries%ansi_end%
-call pip install -r requirements.txt
+call pip install -r requirements.txt > NUL
 
 
 :: Create App EXE
@@ -158,7 +158,7 @@ start /B /WAIT %manager_path_install%\env\python %manager_path_install%\Tools\ma
 :: retrieved from https://stackoverflow.com/a/26797258
 ECHO %info_h2%Creating App .EXE file...%ansi_end%
 mkdir %manager_path_install%\dist
-call iexpress /N %manager_path_install%\executables\Windows\demanagertools.iexpress.SED 
+call iexpress /N %manager_path_install%\executables\Windows\dmt-iexpress.SED
 ::TODO - Install ResourceHacker.exe - http://www.angusj.com/resourcehacker/#download
 IF EXIST %UserProfile%\Desota\Portables\ressourcehacker\ResourceHacker.exe (
     goto EO_ressourcehacker 

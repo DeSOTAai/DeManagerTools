@@ -1,6 +1,6 @@
 @ECHO OFF
 :: VARS 
-set manager_path_run=%userprofile%\Desota\DeManagerTools
+set manager_path_run=%userprofile%\Documents\Projetos\DeSOTA\DeManagerTools
 :: Go to Project Folder
 call cd %manager_path_run%
 :: Run Manager Tools

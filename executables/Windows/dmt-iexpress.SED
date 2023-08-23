@@ -24,14 +24,14 @@ SourceFiles=SourceFiles
 InstallPrompt=
 DisplayLicense=
 FinishMessage=
-TargetName=%UserProfile%\Desota\DeManagerTools\dist\Desota-ManagerTools.exe
-FriendlyName=DeSOTA TITLE
-AppLaunched=cmd /c demanagertools.run.bat
+TargetName=>TargetExe<
+FriendlyName=>FileTitle<
+AppLaunched=>AppLaunched<
 PostInstallCmd=<None>
 AdminQuietInstCmd=
 UserQuietInstCmd=
-FILE0="demanagertools.run.bat"
+FILE0=">BatFile<"
 [SourceFiles]
-SourceFiles0=%UserProfile%\Desota\DeManagerTools\executables\Windows
+SourceFiles0=>BatFolder<\
 [SourceFiles0]
 %FILE0%=
