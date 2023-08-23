@@ -32,6 +32,6 @@ AdminQuietInstCmd=
 UserQuietInstCmd=
 FILE0="run_dev.bat"
 [SourceFiles]
-SourceFiles0=%UserProfile%\Documents\Projetos\DeSOTA\DeManagerTools\executables\Windows
+SourceFiles0=%UserProfile%\Desota\DeManagerTools\executables\Windows
 [SourceFiles0]
 %FILE0%=

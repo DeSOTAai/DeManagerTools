@@ -1,7 +1,7 @@
 import os
 
 user_path=os.path.expanduser('~')
-app_path=os.path.join(user_path, "Documents\Projetos\DeSOTA\DeManagerTools")    #DEV
+app_path=os.path.join(user_path, "Desota\DeManagerTools")    #DEV
 
 def main():
     orig_sed_path = os.path.join(app_path, "executables\Windows\demanagertools.iexpress.SED")

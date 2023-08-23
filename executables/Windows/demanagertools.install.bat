@@ -10,7 +10,7 @@ set manager_git_branch=main
 set manager_path_install=%UserProfile%\Desota\DeManagerTools
 set manager_path_dev=%UserProfile%\Documents\Projetos\DeSOTA\DeManagerTools
 :: - Model Execs
-set manager_start="%manager_path_install%\dist\DeSOTA - Manager Tools.exe"
+set manager_start="%manager_path_install%\dist\Desota-ManagerTools.exe"
 set manager_uninstall=%manager_path_install%\executables\Windows\demanagertools.uninstall.bat
 
 
@@ -154,7 +154,7 @@ ECHO %info_h1%Step 7 - Create APP .EXE%ansi_end%
 :: call pyinstaller -w -F --uac-admin -i "Assets/icon.ico" -n "DeSOTA - Manager Tools" app.py :: DEPRECATED
 :: CREATE SED FILE - https://ss64.com/nt/iexpress-sed.html
 ECHO %info_h2%Manipulation .SED file...%ansi_end%
-call %manager_path_install%\env\python %manager_path_install%\Tools\manipulate_sed_file.py
+start /B /WAIT %manager_path_install%\env\python %manager_path_install%\Tools\manipulate_sed_file.py
 :: retrieved from https://stackoverflow.com/a/26797258
 ECHO %info_h2%Creating App .EXE file...%ansi_end%
 mkdir %manager_path_install%\dist
