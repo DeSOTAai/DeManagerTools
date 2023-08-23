@@ -30,7 +30,7 @@ AppLaunched=cmd /c demanagertools.run.bat
 PostInstallCmd=<None>
 AdminQuietInstCmd=
 UserQuietInstCmd=
-FILE0="run_dev.bat"
+FILE0="demanagertools.run.bat"
 [SourceFiles]
 SourceFiles0=%UserProfile%\Desota\DeManagerTools\executables\Windows
 [SourceFiles0]
