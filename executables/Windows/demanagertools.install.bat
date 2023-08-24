@@ -10,7 +10,7 @@ set manager_git_branch=main
 set manager_path_install=%UserProfile%\Desota\DeManagerTools
 set manager_path_dev=%UserProfile%\Documents\Projetos\DeSOTA\DeManagerTools
 :: - Model Execs
-set manager_start="%manager_path_install%\dist\Desota-ManagerTools.exe"
+set manager_start=%manager_path_install%\dist\Desota-ManagerTools.exe
 set manager_uninstall=%manager_path_install%\executables\Windows\demanagertools.uninstall.bat
 
 
@@ -147,7 +147,7 @@ call %UserProfile%\Desota\Portables\miniconda3\condabin\conda activate ./env
 :: Install required Libraries
 ECHO %info_h1%Step 6 - Install Project Libraries%ansi_end%
 call pip install -r requirements.txt > NUL
-
+call %UserProfile%\Desota\Portables\miniconda3\condabin\conda deactivate
 
 :: Create App EXE
 ECHO %info_h1%Step 7 - Create APP .EXE%ansi_end%
@@ -176,7 +176,7 @@ ECHO %info_h2%Creating APP Desktop Shortcut...%ansi_end%
 call copy %manager_path_install%\dist\Desota-ManagerTools.exe %UserProfile%\desktop
 
 ECHO %sucess%Step 8 - Starting DeSOTA - Manager Tools%ansi_end%
-call %manager_start%
+start /B %manager_start%
 
 :EOF_IN
 ECHO %info_h1%END of Installer - The Window will close in 30 secs...%ansi_end%
