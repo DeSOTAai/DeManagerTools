@@ -1,6 +1,7 @@
 # DeSOTA
 services.config.yaml
 user.config.yaml
+dmt-iexpress.SED
 build/
 dist/
 
