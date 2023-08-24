@@ -1,14 +1,21 @@
-@ECHO OFF
+::@ECHO OFF
 :: VARS 
-set manager_path_run=%userprofile%\Documents\Projetos\DeSOTA\DeManagerTools
+set manager_path_run=%userprofile%\Desota\DeManagerTools
 :: Check if APP is allready open
-tasklist /fi "ImageName eq Desota-ManagerTools.exe" /fo csv 2>NUL | find /I "desota-managertools.exe">NUL
-IF "%ERRORLEVEL%"=="0" (
-    GOTO EO_dmt-run
+IF NOT EXIST %manager_path_run%\status.txt (
+	echo 0 > %manager_path_run%\status.txt
+)
+set /p manager_status= < %manager_path_run%\status.txt
+if %manager_status% EQU 1 (
+	GOTO EO_dmt-reopen
 )
 :: Go to Project Folder
 call cd %manager_path_run%
 :: Run Manager Tools
+echo 1 > %manager_path_run%\status.txt
 call %manager_path_run%\env\python %manager_path_run%\app.py
 :EO_dmt-run
-exit
+echo 0 > %manager_path_run%\status.txt
+:EO_dmt-reopen
+::exit
+PAUSE

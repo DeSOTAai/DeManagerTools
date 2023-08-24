@@ -2,6 +2,7 @@
 services.config.yaml
 user.config.yaml
 dmt-iexpress.SED
+status.txt
 build/
 dist/
 
