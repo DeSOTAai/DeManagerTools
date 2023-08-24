@@ -1,4 +1,4 @@
-::@ECHO OFF
+@ECHO OFF
 :: VARS 
 set manager_path_run=%userprofile%\Desota\DeManagerTools
 :: Check if APP is allready open
@@ -17,5 +17,4 @@ call %manager_path_run%\env\python %manager_path_run%\app.py
 :EO_dmt-run
 echo 0 > %manager_path_run%\status.txt
 :EO_dmt-reopen
-::exit
-PAUSE
+exit
