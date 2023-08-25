@@ -1,6 +1,6 @@
 # User API Key
-api_key: ==user_api_key==
+api_key:
 # User Models
-models: ==user_models==
+models:
 # User System
-system: ==user_system==
+system:

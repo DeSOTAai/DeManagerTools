@@ -7,8 +7,8 @@ cls
 set manager_git=https://github.com/DeSOTAai/DeManagerTools.git
 set manager_git_branch=main
 :: - Model Path
-set manager_path_install=%UserProfile%\Desota\DeManagerTools
-set manager_path_dev=%UserProfile%\Documents\Projetos\DeSOTA\DeManagerTools
+set desota_root_path=%UserProfile%\Desota
+set manager_path_install=%desota_root_path%\DeManagerTools
 :: - Model Execs
 set manager_start=%manager_path_install%\dist\Desota-ManagerTools.exe
 set manager_uninstall=%manager_path_install%\executables\Windows\demanagertools.uninstall.bat
@@ -149,8 +149,16 @@ ECHO %info_h1%Step 6 - Install Project Libraries%ansi_end%
 call pip install -r requirements.txt > NUL
 call %UserProfile%\Desota\Portables\miniconda3\condabin\conda deactivate
 
+:: Create DeSOTA Configs
+ECHO %info_h1%Step 7 - Create DeSOTA Configs%ansi_end%
+IF NOT EXIST %desota_root_path%\Configs (
+    mkdir %desota_root_path%\Configs
+    call copy %manager_path_install%\Assets\services.config_template.yaml %desota_root_path%\Configs\services.config.yaml
+    call copy %manager_path_install%\Assets\user.config_template.yaml %desota_root_path%\Configs\user.config.yaml
+)
+
 :: Create App EXE
-ECHO %info_h1%Step 7 - Create APP .EXE%ansi_end%
+ECHO %info_h1%Step 8 - Create APP .EXE%ansi_end%
 :: call pyinstaller -w -F --uac-admin -i "Assets/icon.ico" -n "DeSOTA - Manager Tools" app.py :: DEPRECATED
 :: CREATE SED FILE - https://ss64.com/nt/iexpress-sed.html
 ECHO %info_h2%Manipulation .SED file...%ansi_end%
@@ -175,7 +183,7 @@ call %UserProfile%\Desota\Portables\ressourcehacker\ResourceHacker.exe -open "%U
 ECHO %info_h2%Creating APP Desktop Shortcut...%ansi_end%
 call copy %manager_path_install%\dist\Desota-ManagerTools.exe %UserProfile%\desktop
 
-ECHO %sucess%Step 8 - Starting DeSOTA - Manager Tools%ansi_end%
+ECHO %sucess%Step 9 - Starting DeSOTA - Manager Tools%ansi_end%
 start /B %manager_start%
 
 :EOF_IN
