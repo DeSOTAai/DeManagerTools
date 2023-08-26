@@ -60,7 +60,7 @@ IF NOT EXIST %manager_path_install% (
 ECHO %info_h2%Re-Instalation required - Start Uninstall...%ansi_end%
 call %manager_uninstall% /Q
 IF EXIST %manager_path_install% (
-    GOTO EOF_IN
+    GOTO EOF_IN_noTimeOUT
 ) ELSE (
     ECHO %sucess%Uninstalation Sucess%ansi_end%
 )
@@ -174,4 +174,5 @@ call %manager_start%
 ECHO %info_h1%END of Installer - This window will close in 30 secs...%ansi_end%
 :EOF_IN
 call timeout 30
+:EOF_IN_noTimeOUT
 exit

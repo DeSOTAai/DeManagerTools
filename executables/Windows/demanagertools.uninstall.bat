@@ -40,7 +40,7 @@ GOTO start_manager_uninstall
 set /p manager_status= < %manager_path_un%\status.txt
 IF "%manager_status%" EQU "1" (
     ECHO %fail%Re-Instalation Fail - Close ` Desota - Manager Tools.exe ` before attempting to Re/Un-Install!!%ansi_end%
-    call timeout 10
+    call timeout 30
     GOTO EOF_MAN_UN
 )
 :start_manager_uninstall

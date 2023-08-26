@@ -47,7 +47,7 @@ class SGui():
         # print(f" [DEBUG ] -> themes = {self.themes}")
         self.tab_keys= [ '-TAB1-', '-TAB2-', '-TAB3-']
         self.tabgrp = [
-            [sg.Text('Themes: ', font=self.default_f, pad=((410,0),(0,0))), sg.Combo(values=self.themes, default_value=in_theme, enable_events=True, key='selectTheme')],
+            [sg.Text('Theme: ', font=self.default_f, pad=((410,0),(0,0))), sg.Combo(values=self.themes, default_value=in_theme, enable_events=True, key='selectTheme')],
             [sg.TabGroup(
                 [[
                     sg.Tab('Monitor Models', self.tab1, title_color='Red',border_width =10, background_color=None,tooltip='', element_justification= 'left', key=self.tab_keys[0]),

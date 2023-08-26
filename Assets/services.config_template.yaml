@@ -1,4 +1,7 @@
-## Handle DeSOTA Services
+## Get to know if any Service is running
+services_status: null
+
+## DeSOTA Services Configs
 desota_services: {
     # DeSOTA models runner
     desotaai/derunner: {
@@ -6,6 +9,8 @@ desota_services: {
             service_path: Desota\DeRunner\executables\Windows,
             installer: https://github.com/desotaai/derunner/raw/main/Executables/Windows/DeRunner.install.bat,
             uninstaller: derunner.uninstall.bat,
+            installer_args: [/reinstall],
+            uninstaller_args: [/Q],
             starter: derunner.start.bat,
             stoper: derunner.stop.bat,
             version: 1.0.0
@@ -14,6 +19,8 @@ desota_services: {
             service_path: Desota\DeRunner\executables\Linux,
             installer: ,
             uninstaller: ,
+            installer_args: ,+
+            uninstaller_args: ,
             starter: ,
             stoper: ,
             version:
@@ -22,6 +29,8 @@ desota_services: {
             service_path: Desota\DeRunner\executables\MacOS,
             installer: ,
             uninstaller: ,
+            installer_args: ,
+            uninstaller_args: ,
             starter: ,
             stoper: ,
             version:
@@ -38,6 +47,8 @@ desota_services: {
             service_path: Desota\Desota_Models\NeuraQA\neuralqa\executables\Windows,
             installer: https://raw.githubusercontent.com/franciscomvargas/neuralqa/master/neuralqa/executables/Windows/neuralqa.install.bat,
             uninstaller: neuralqa.uninstall.bat,
+            installer_args: [/reinstall],
+            uninstaller_args: [/Q],
             starter: neuralqa.start.bat,
             stoper: neuralqa.stop.bat,
             version: 1.0.0
@@ -46,6 +57,8 @@ desota_services: {
             service_path: Desota\Desota_Models\NeuraQA\neuralqa\executables\Linux,
             installer: ,
             uninstaller: ,
+            installer_args: ,
+            uninstaller_args: ,
             starter: ,
             stoper: ,
             version:
@@ -54,6 +67,8 @@ desota_services: {
             service_path: Desota\Desota_Models\NeuraQA\neuralqa\executables\MacOS,
             installer: ,
             uninstaller: ,
+            installer_args: ,
+            uninstaller_args: ,
             starter: ,
             stoper: ,
             version:
@@ -73,6 +88,8 @@ desota_services: {
             service_path: Desota\Desota_Models\DeScraper\executables\Windows,
             installer: https://raw.githubusercontent.com/franciscomvargas/descraper/main/executables/Windows/descraper.install.bat,
             uninstaller: descraper.uninstall.bat,
+            installer_args: [/reinstall],
+            uninstaller_args: [/Q],
             starter: descraper.start.bat,
             stoper: descraper.stop.bat,
             version: 1.0.0
@@ -81,6 +98,8 @@ desota_services: {
             service_path: Desota\Desota_Models\DeScraper\executables\Linux,
             installer: ,
             uninstaller: ,
+            installer_args: ,
+            uninstaller_args: ,
             starter: ,
             stoper: ,
             version:
@@ -89,6 +108,8 @@ desota_services: {
             service_path: Desota\Desota_Models\DeScraper\executables\MacOS,
             installer: ,
             uninstaller: ,
+            installer_args: ,
+            uninstaller_args: ,
             starter: ,
             stoper: ,
             version:
