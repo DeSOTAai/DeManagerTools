@@ -1,7 +1,5 @@
 @ECHO OFF
 cls
-
-
 :: Instalation VARS
 :: Model GIT
 set manager_git=https://github.com/DeSOTAai/DeManagerTools.git
@@ -10,7 +8,7 @@ set manager_git_branch=main
 set desota_root_path=%UserProfile%\Desota
 set manager_path_install=%desota_root_path%\DeManagerTools
 :: - Model Execs
-set manager_start=%manager_path_install%\dist\Desota-ManagerTools.exe
+set manager_start="%manager_path_install%\dist\Desota - Manager Tools\Desota - Manager Tools.exe"
 set manager_uninstall=%manager_path_install%\executables\Windows\demanagertools.uninstall.bat
 
 
@@ -24,7 +22,6 @@ set git64_portable=https://github.com/git-for-windows/git/releases/download/v2.4
 set git32_portable=https://github.com/git-for-windows/git/releases/download/v2.41.0.windows.3/PortableGit-2.41.0.3-32-bit.7z.exe
 set miniconda64=https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86_64.exe
 set miniconda32=https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86.exe
-set ressourcehacker=http://www.angusj.com/resourcehacker/resource_hacker.zip
 
 :: - .bat ANSI Colored CLI
 set header=
@@ -134,8 +131,8 @@ IF NOT EXIST %UserProfile%\Desota\Portables\miniconda3\condabin\conda.bat goto i
 goto skipinstallminiconda
 :installminiconda
 ECHO %info_h2%Downloading Portable MiniConda...%ansi_end%
-IF %PROCESSOR_ARCHITECTURE%==AMD64 powershell -command "Invoke-WebRequest -Uri %miniconda64% -OutFile %UserProfile%\miniconda_installer.exe" && start /B /WAIT %UserProfile%\miniconda_installer.exe /InstallationType=JustMe /AddToPath=0 /RegisterPython=0 /S /D=%UserProfile%\Desota\Portables\miniconda3 && del %UserProfile%\miniconda_installer.exe && goto skipinstallminiconda
-IF %PROCESSOR_ARCHITECTURE%==x86 powershell -command "Invoke-WebRequest -Uri %miniconda32% -OutFile %UserProfile%\miniconda_installer.exe" && start /B /WAIT %UserProfile%\miniconda_installer.exe /InstallationType=JustMe /AddToPath=0 /RegisterPython=0 /S /D=%UserProfile%\Desota\Portables\miniconda3 && del %UserProfile%\miniconda_installer.exe && && goto skipinstallminiconda
+IF %PROCESSOR_ARCHITECTURE%==AMD64 powershell -command "Invoke-WebRequest -Uri %miniconda64% -OutFile ~\miniconda_installer.exe" && start /B /WAIT %UserProfile%\miniconda_installer.exe /InstallationType=JustMe /AddToPath=0 /RegisterPython=0 /S /D=%UserProfile%\Desota\Portables\miniconda3 && del %UserProfile%\miniconda_installer.exe && goto skipinstallminiconda
+IF %PROCESSOR_ARCHITECTURE%==x86 powershell -command "Invoke-WebRequest -Uri %miniconda32% -OutFile ~\miniconda_installer.exe" && start /B /WAIT %UserProfile%\miniconda_installer.exe /InstallationType=JustMe /AddToPath=0 /RegisterPython=0 /S /D=%UserProfile%\Desota\Portables\miniconda3 && del %UserProfile%\miniconda_installer.exe && && goto skipinstallminiconda
 :skipinstallminiconda
 
 
@@ -147,46 +144,31 @@ call %UserProfile%\Desota\Portables\miniconda3\condabin\conda activate ./env
 :: Install required Libraries
 ECHO %info_h1%Step 6 - Install Project Libraries%ansi_end%
 call pip install -r requirements.txt > NUL
+
+:: Create App EXE
+ECHO %info_h1%Step 7 - Create APP .EXE%ansi_end%
+call pyinstaller -D --noconsole -n "Desota - Manager Tools" -i "%manager_path_install%\Assets\icon.ico" %manager_path_install%\app.py > NUL
 call %UserProfile%\Desota\Portables\miniconda3\condabin\conda deactivate
 
+:: Create App ShortCut
+ECHO %info_h2%Creating APP Desktop Shortcut...%ansi_end%
+call cscript %manager_path_install%\Tools\CreateSchortcut.vbs > NUL
+
 :: Create DeSOTA Configs
-ECHO %info_h1%Step 7 - Create DeSOTA Configs%ansi_end%
+ECHO %info_h1%Step 8 - Configure DeSOTA %ansi_end%
 IF NOT EXIST %desota_root_path%\Configs (
+    ECHO %info_h2%Creating DeSOTA Configs...%ansi_end% 
     mkdir %desota_root_path%\Configs
     call copy %manager_path_install%\Assets\services.config_template.yaml %desota_root_path%\Configs\services.config.yaml
     call copy %manager_path_install%\Assets\user.config_template.yaml %desota_root_path%\Configs\user.config.yaml
+    call %manager_path_install%\env\python %manager_path_install%\Tools\SetUserConfigs.py --key system --value win
 )
 
-:: Create App EXE
-ECHO %info_h1%Step 8 - Create APP .EXE%ansi_end%
-:: call pyinstaller -w -F --uac-admin -i "Assets/icon.ico" -n "DeSOTA - Manager Tools" app.py :: DEPRECATED
-:: CREATE SED FILE - https://ss64.com/nt/iexpress-sed.html
-ECHO %info_h2%Manipulation .SED file...%ansi_end%
-start /B /WAIT %manager_path_install%\env\python %manager_path_install%\Tools\manipulate_sed_file.py
-:: retrieved from https://stackoverflow.com/a/26797258
-ECHO %info_h2%Creating App .EXE file...%ansi_end%
-mkdir %manager_path_install%\dist
-call iexpress /N %manager_path_install%\executables\Windows\dmt-iexpress.SED
-::TODO - Install ResourceHacker.exe - http://www.angusj.com/resourcehacker/#download
-IF EXIST %UserProfile%\Desota\Portables\ressourcehacker\ResourceHacker.exe (
-    goto EO_ressourcehacker 
-)
-ECHO %info_h2%Installing RessourceHacker - Edit .EXE icon...%ansi_end%
-mkdir %UserProfile%\Desota\Portables\ressourcehacker 
-call powershell -command "Invoke-WebRequest -Uri %ressourcehacker% -OutFile ~\Desota\Portables\ressourcehacker.zip" &&  tar -xzvf %UserProfile%\Desota\Portables\ressourcehacker.zip -C %UserProfile%\Desota\Portables\ressourcehacker && del %UserProfile%\Desota\Portables\ressourcehacker.zip
-
-::TODO - edit following paths
-:EO_ressourcehacker
-ECHO %info_h2%Editing .EXE icon...%ansi_end%
-call %UserProfile%\Desota\Portables\ressourcehacker\ResourceHacker.exe -open "%UserProfile%\Desota\DeManagerTools\dist\Desota-ManagerTools.exe" -save "%UserProfile%\Desota\DeManagerTools\dist\Desota-ManagerTools.exe" -action addskip -res "%UserProfile%\Desota\DeManagerTools\Assets\icon.ico" -mask ICONGROUP,MAINICON,
-
-ECHO %info_h2%Creating APP Desktop Shortcut...%ansi_end%
-call copy %manager_path_install%\dist\Desota-ManagerTools.exe %UserProfile%\desktop
 
 ECHO %sucess%Step 9 - Starting DeSOTA - Manager Tools%ansi_end%
 start /B %manager_start%
 
 :EOF_IN
-ECHO %info_h1%END of Installer - The Window will close in 30 secs...%ansi_end%
+ECHO %info_h1%END of Installer - This window will close in 30 secs...%ansi_end%
 call timeout 30
 exit

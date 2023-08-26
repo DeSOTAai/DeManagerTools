@@ -5,6 +5,7 @@ dmt-iexpress.SED
 status.txt
 build/
 dist/
+dev_files/
 
 # Everything Else
 docs/images/extra

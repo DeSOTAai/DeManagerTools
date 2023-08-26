@@ -1,3 +1,4 @@
-tk
-pystray
+PySimpleGUI
+psgtray
+pyinstaller
 pyyaml

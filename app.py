@@ -1,120 +1,200 @@
-import sys
 import os
-import tkinter as tk
-from tkinter import ttk
-from pystray import MenuItem as item
-import pystray
-from PIL import Image
-
-DEBUG = False
+import webbrowser
+import json
+import PySimpleGUI as sg
+import yaml
+from yaml.loader import SafeLoader
+DEBUG = True
+DESOTA_REQUIRED_SERVICES = ["desotaai/derunner"]
 
 user_path=os.path.expanduser('~')
-# app_path=os.path.join(user_path, "Documents\Projetos\DeSOTA\DeManagerTools")    #DEV
-app_path=os.path.join(user_path, "Desota\DeManagerTools")                     #DEPLOY
+desota_root_path=os.path.join(user_path, "Desota")
+app_path=os.path.join(desota_root_path, "DeManagerTools")
 
 # import pyyaml module
 import yaml
 from yaml.loader import SafeLoader
-config_folder=os.path.join(app_path, "Configs")  # User | Services
+config_folder=os.path.join(desota_root_path, "Configs")  # User | Services
 # Open the file and load the file
-with open(os.path.join(config_folder, "desota.config.yaml")) as f:
-    DESOTA_CONF = yaml.load(f, Loader=SafeLoader)
+with open(os.path.join(config_folder, "services.config.yaml")) as f:
+    SERVICES_CONF = yaml.load(f, Loader=SafeLoader)
 with open(os.path.join(config_folder, "user.config.yaml")) as f:
     USER_CONF = yaml.load(f, Loader=SafeLoader)
 
-class Ctkinter:
-    def __init__(self) -> None:
+# Construct APP with PySimpleGui
+class SGui():
+    def __init__(self, in_theme) -> None:
         self.debug = DEBUG
-        self.desota_config = DESOTA_CONF
+        self.services_config = SERVICES_CONF
         self.user_config = USER_CONF
-        self.root=tk.Tk()
-        self.root.title(" DeSOTA - Manager Tools ")
-        # Setting up APP
-        self.root.iconbitmap(os.path.join(app_path, "Assets\icon.ico"))
-        self.root.geometry("600x400")
+        self.required_services = DESOTA_REQUIRED_SERVICES
 
-        # Minimize the window tkinter in the windows system tray - retieved from https://stackoverflow.com/a/54841035
-        def quit_window(icon, item):
-            icon.stop()
-            self.root.destroy()
+        #define theme
+        sg.theme(in_theme)
+        
+        #define fonts
+        self.header_f = ("Helvetica", 12, "bold")
+        self.title_f = ("Helvetica", 10, "bold")
+        self.default_f = sg.DEFAULT_FONT
 
-        def show_window(icon, item):
-            icon.stop()
-            self.root.after(0, self.root.deiconify)
+        #define layout
+        self.tab1 = self.construct_monitor_models_tab()
+        self.tab2 = self.construct_install_tab()
+        self.tab3 = self.construct_api_tab()
 
-        def withdraw_window():  
-            self.root.withdraw()
-            image = Image.open(os.path.join(app_path, "Assets\icon.ico"))
-            menu = (item('Quit', quit_window), item('Show', show_window))
-            icon = pystray.Icon("name", image, "title", menu)
-            icon.run()
-            
-        if not self.debug:
-            self.root.protocol('WM_DELETE_WINDOW', withdraw_window)
+        #Define Layout with Tabs
+        self.themes = sg.ListOfLookAndFeelValues()
+        # print(f" [DEBUG ] -> themes = {self.themes}")
+        self.tab_keys= [ '-TAB1-', '-TAB2-', '-TAB3-']
+        self.tabgrp = [
+            [sg.Text('Themes: ', font=self.default_f, pad=((410,0),(0,0))), sg.Combo(values=self.themes, default_value=in_theme, enable_events=True, key='selectTheme')],
+            [sg.TabGroup(
+                [[
+                    sg.Tab('Monitor Models', self.tab1, title_color='Red',border_width =10, background_color=None,tooltip='', element_justification= 'left', key=self.tab_keys[0]),
+                    sg.Tab('Models Instalation', self.tab2,title_color='Blue',background_color=None, key=self.tab_keys[1]),
+                    sg.Tab('DeSOTA API Key', self.tab3,title_color='Black',background_color=None,tooltip='', key=self.tab_keys[2])
+                ]], 
+                tab_location='topleft',
+                title_color='Gray', 
+                tab_background_color='White',
+                selected_title_color='White',
+                selected_background_color='Gray', 
+                border_width=5
+            )]
+        ]
+                
+        #Define Window
+        self.root = sg.Window("Desota - Manager Tools",self.tabgrp, icon=os.path.join(app_path, "Assets", "icon.ico"))
 
-        # Creating Tabbed Widget With Python-Tkinter - retrieved from https://www.geeksforgeeks.org/creating-tabbed-widget-with-python-tkinter/
-        # Creating Tab Control
-        self.tabControl = ttk.Notebook(self.root)
-        # Creating the tabs
-        self.tab1 = ttk.Frame(self.tabControl)    # MONITOR SERVICES
-        self.tab2 = ttk.Frame(self.tabControl)    # INSTALATION
-        self.tab3 = ttk.Frame(self.tabControl)    # API KEY
-
-        # Adding the tabs
-        self.tabControl.add(self.tab1, text='Monitor Models')
-        self.tabControl.add(self.tab2, text='Models Instalation')
-        self.tabControl.add(self.tab3, text='DeSOTA API Key')
-        # Packing the tab control to make the tabs visible - The pack() method is used to organize widgets in blocks before placing them in the parent widget. This can be done using various options like fill, expand and side.
-        self.tabControl.pack(expand=1, fill="both")
-
-    # UTILS
-    # - Move Within Tkinter Tabs
-    def move_2_tab1(self):
-        self.tabControl.select(self.tab1)
-    def move_2_tab2(self):
-        self.tabControl.select(self.tab2)
-    def move_2_tab3(self):
-        self.tabControl.select(self.tab3)
-
-    # TAB Constructors
+    ## Utils
     # TAB 1 - Monitor Models
-    def monitor_tab(self):
+    def construct_monitor_models_tab(self):
         # No Models Available
         if not self.user_config['models']:
-            frame = tk.LabelFrame(
-                self.tab1,
-                text='No Model Installed',
-                bg='#f0f0f0',
-                font=(20)
-            )
-            frame.pack(expand=True, fill="both")
-            ttk.Button(
-                frame, 
-                text="Install Models",
-                command = self.move_2_tab2
-            ).grid(column=0, row=0, padx=10, pady=10)
+            return [
+                [sg.Text('No Model Installed', font=self.header_f)],
+                [sg.Button('Install Models', key="move2installTab")]
+            ]
         # Models Available
         else:
             pass
-
+    
     # TAB 2 - Models Instalation
-    def install_tab(self):
-        ttk.Label(self.tab2, text="Availables Models").grid(column=0, row=0, padx=30, pady=30)
+    def construct_install_tab(self):
+        _install_layout = []
+        # Required DeSOTA Services
+        _req_serv = []
+        for tmp_req_serv in self.required_services:
+            if not self.user_config['models'] or tmp_req_serv not in self.user_config['models']:
+                _req_serv.append(tmp_req_serv)
+        if _req_serv:
+            _install_layout.append([sg.Text('Required Desota Services', font=self.title_f)])
+            for _r_q in _req_serv:
+                _install_layout.append([sg.Checkbox(_r_q, default=True, disabled=True, key=f"SERVICE {_r_q}")])
+            _install_layout.append([sg.HorizontalSeparator()])
+            
+            
+        _install_layout.append([sg.Text('Available Models', font=self.title_f)])
+        for _k, _v in self.services_config['desota_services'].items():
+            if self.user_config['models'] and _k in self.user_config['models'] or _k in self.required_services:
+                continue
+            _install_layout.append([sg.Checkbox(_k, key=f"SERVICE {_k}")])
+
+        return [
+            # [sg.Slider(range=(1, 20), default_value=5, orientation='v', size=(10,20))],
+            [sg.Text('Select the services to be installed', font=self.header_f)],
+            [sg.Column(_install_layout, size=(600,300), scrollable=True)],
+            [sg.Button('Start Instalation', key="startInstall")]
+        ]
 
     # TAB 3 - DeSOTA API Key
-    def api_tab(self):
-        ttk.Label(self.tab2, text="Availables Models").grid(column=0, row=0, padx=30, pady=30)
+    def construct_api_tab(self):
+        # No Models Installed
+        if not self.user_config['models']:
+            return [
+                [sg.Text('No Model Installed', font=self.header_f)],
+                [sg.Button('Install Models', key="move2installTab0")]
+            ]
+        # TODO . Discuss w/ Kris what about if people have models installed but need key authenticato for new models...
+        # Models Installed
+        else:
+            _strip_models = [ m.strip() for m in self.user_config['models']]
+            _str_models = ",".join(_strip_models)
+            return [
+                [sg.Text('Create your API Key', font=self.header_f)],  # Title
+                [sg.Text('1. Log In DeSOTA ', font=self.default_f), sg.Text("here", tooltip='', enable_events=True, font=self.default_f, text_color="blue", key=f'URL http://129.152.27.36/index.php')],    # Log In DeSOTA
+                [sg.Text('2. Confirm you are logged in DeOTA API ', font=self.default_f), sg.Text("here", tooltip='', enable_events=True, font=self.default_f, text_color="blue", key=f'URL http://129.152.27.36/assistant/api.php')],    # Confirm Log In DeSOTA
+                [sg.Text('3. Get your DeSOTA API Key ', font=self.default_f), sg.Text("here", tooltip='', enable_events=True, font=self.default_f, text_color="blue", key=f'URL http://129.152.27.36/assistant/api.php?models_list={_str_models}')],    # SET API Key
+                [sg.Text('4. Insert DeSOTA API Key', font=self.default_f),sg.Input('',key='inpKey')],
+                [sg.Button('Set API Key', key="setAPIkey")]
+            ]
+        
+        
+
+    # Move Within Tkinter Tabs
+    def move_2_tab2(self):
+        self.root[ self.tab_keys[1] ].select()
+
+
+
+    def listener(self):
+        #Read  values entered by user
+        return self.root.read()
+
+# Utils
+def get_user_theme():
+    if not os.path.isfile(os.path.join(app_path, "user_theme.txt")):
+        with open(os.path.join(app_path, "user_theme.txt"), "w") as fw:
+            fw.write("DarkBlue")
+            return "DarkBlue"
+    with open(os.path.join(app_path, "user_theme.txt"), "r") as fr:
+        return fr.read().strip()
+    
+def get_app_status():
+    if not os.path.isfile(os.path.join(app_path, "status.txt")):
+        with open(os.path.join(app_path, "status.txt"), "w") as fw:
+            fw.write("0")
+            return "0"
+    with open(os.path.join(app_path, "status.txt"), "r") as fr:
+        return fr.read().strip()
+
 
 def main():
-    my_tk = Ctkinter()
+    # Get APP Status - Prevent Re-Open
+    if get_app_status() == "1":
+        return 0
+    with open(os.path.join(app_path, "status.txt"), "w") as fw:
+        fw.write("1")
 
-    my_tk.monitor_tab()
-    my_tk.install_tab()
-    my_tk.api_tab()
-    
-    # Run the application
-    my_tk.root.mainloop()
+    # Memorize User Theme
+    user_theme = get_user_theme()
 
-
+    # Start APP
+    sgui = SGui(user_theme)
+    while True:
+        try:
+            #Read  values entered by user
+            _event, _values = sgui.listener()
+        except:
+            _event = sg.WIN_CLOSED
+        if _event == sg.WIN_CLOSED or _event == "Close":
+            sgui.root.close()    
+            break
+        #access all the values and if selected add them to a string
+        print(f" [ DEBUG ] -> event = {_event}")
+        print(f" [ DEBUG ] -> values = {_values}")
+        # print(f" [ DEBUG ] ->  = {}")
+        if "move2installTab" in _event:
+            sgui.move_2_tab2()
+        elif _event.startswith("URL "):
+            url = _event.split(' ')[1].strip()
+            webbrowser.open(url)
+        elif _event == "selectTheme":
+            sgui.root.close()
+            sgui = SGui(_values["selectTheme"])
+            with open(os.path.join(app_path, "user_theme.txt"), "w") as fw:
+                fw.write(_values["selectTheme"])
+        
+        
 if __name__ == "__main__":
     main()
