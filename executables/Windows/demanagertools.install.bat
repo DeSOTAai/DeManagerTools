@@ -152,7 +152,13 @@ call %UserProfile%\Desota\Portables\miniconda3\condabin\conda deactivate
 
 :: Create App ShortCut
 ECHO %info_h2%Creating APP Desktop Shortcut...%ansi_end%
-call cscript %manager_path_install%\Tools\CreateSchortcut.vbs > NUL
+echo Set oWS = WScript.CreateObject("WScript.Shell") > CreateShortcut.vbs
+echo sLinkFile = "%HOMEDRIVE%%HOMEPATH%\Desktop\Desota - Manager Tools.lnk" >> CreateShortcut.vbs
+echo Set oLink = oWS.CreateShortcut(sLinkFile) >> CreateShortcut.vbs
+echo oLink.TargetPath = "%HOMEDRIVE%%HOMEPATH%\Desota\DeManagerTools\dist\Desota - Manager Tools\Desota - Manager Tools.exe"  >> CreateShortcut.vbs
+echo oLink.Save >> CreateShortcut.vbs
+cscript CreateShortcut.vbs
+del CreateShortcut.vbs
 
 :: Create DeSOTA Configs
 ECHO %info_h1%Step 8 - Configure DeSOTA %ansi_end%
