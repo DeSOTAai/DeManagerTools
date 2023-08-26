@@ -58,9 +58,8 @@ IF NOT EXIST %manager_path_install% (
     GOTO endofreinstall
 )
 ECHO %info_h2%Re-Instalation required - Start Uninstall...%ansi_end%
-call %manager_uninstall% /Q > NUL 2>nul
+call %manager_uninstall% /Q
 IF EXIST %manager_path_install% (
-    ECHO %fail%Re-Instalation Fail - Try Again after Rebooting PC%ansi_end%
     GOTO EOF_IN
 ) ELSE (
     ECHO %sucess%Uninstalation Sucess%ansi_end%
@@ -92,7 +91,6 @@ IF %PROCESSOR_ARCHITECTURE%==AMD64 powershell -command "Invoke-WebRequest -Uri %
 IF %PROCESSOR_ARCHITECTURE%==x86 powershell -command "Invoke-WebRequest -Uri %python32% -OutFile ~\python3_installer.exe" && start /B /WAIT %UserProfile%\python3_installer.exe /quiet InstallAllUsers=0 PrependPath=1 Include_test=0 TargetDir=%UserProfile%\Desota\Portables\python3 && del %UserProfile%\python3_installer.exe && goto skipinstallpython
 IF NOT EXIST %UserProfile%\Desota\Portables\python3 (
     ECHO %fail%Python Instalation Fail - check https://www.python.org/downloads/windows/%ansi_end%
-    PAUSE
     GOTO EOF_IN
 )
 ELSE (
@@ -173,7 +171,7 @@ IF NOT EXIST %desota_root_path%\Configs (
 ECHO %sucess%Step 9/9 - Starting DeSOTA - Manager Tools%ansi_end%
 call %manager_start%
 
-:EOF_IN
 ECHO %info_h1%END of Installer - This window will close in 30 secs...%ansi_end%
+:EOF_IN
 call timeout 30
 exit
