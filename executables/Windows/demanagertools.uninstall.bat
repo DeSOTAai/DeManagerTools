@@ -9,6 +9,11 @@ set model_path=%UserProfile%\Desota\DeManagerTools
 :: IPUT ARGS - /Q=Quietly
 SET arg1=/Q
 
+:: Delete APP ShortCut
+IF EXIST "%HOMEDRIVE%%HOMEPATH%\Desktop\Desota - Manager Tools.lnk" (
+    del "%HOMEDRIVE%%HOMEPATH%\Desktop\Desota - Manager Tools.lnk"
+)
+
 IF "%1" EQU "" GOTO noargs
 IF %1 EQU /Q (
     :: Delete Project Folder
