@@ -8,7 +8,7 @@ set manager_git_branch=main
 set desota_root_path=%UserProfile%\Desota
 set manager_path_install=%desota_root_path%\DeManagerTools
 :: - Model Execs
-set manager_start="%manager_path_install%\dist\Desota - Manager Tools\Desota - Manager Tools.exe"
+set manager_start="%HOMEDRIVE%%HOMEPATH%\Desota\DeManagerTools\dist\Desota - Manager Tools\Desota - Manager Tools.exe"
 set manager_uninstall=%manager_path_install%\executables\Windows\demanagertools.uninstall.bat
 
 
@@ -50,7 +50,7 @@ set ansi_end=%ESC%[0m
 :: SET arg2=/startmanager
 
 ECHO %header%Welcome to DeSOTA - Task Manager Installer!%ansi_end%
-ECHO %info_h1%Step 1 - Check Re-Instalation%ansi_end%
+ECHO %info_h1%Step 1/9 - Check Re-Instalation%ansi_end%
 
 :: Re-instalation Check
 IF NOT EXIST %manager_path_install% (
@@ -58,27 +58,26 @@ IF NOT EXIST %manager_path_install% (
     GOTO endofreinstall
 )
 ECHO %info_h2%Re-Instalation required - Start Uninstall...%ansi_end%
-call %manager_uninstall% /Q
+call %manager_uninstall% /Q > NUL 2>nul
 IF EXIST %manager_path_install% (
     ECHO %fail%Re-Instalation Fail - Try Again after Rebooting PC%ansi_end%
     GOTO EOF_IN
-)
-ELSE (
+) ELSE (
     ECHO %sucess%Uninstalation Sucess%ansi_end%
 )
 :endofreinstall
 
 
-ECHO %info_h1%Step 2 - Create Project Folder%ansi_end%
+ECHO %info_h1%Step 2/9 - Create Project Folder%ansi_end%
 :: Create Project Folder
-mkdir %manager_path_install% > NUL
+mkdir %manager_path_install% > NUL 2>NUL
 call cd %manager_path_install%
 
-ECHO %info_h1%Step 3 - Install Python%ansi_end%
+ECHO %info_h1%Step 3/9 - Install Python%ansi_end%
 :: Install Python if Required
-python --version 3>NUL
+python --version 3 > NUL 2>NUL
 IF errorlevel 1 (
-    python3 --version 3>NUL
+    python3 --version 3 > NUL 2>NUL
     IF errorlevel 1 (
         IF NOT EXIST %UserProfile%\Desota\Portables\python3 (
             GOTO installpython
@@ -88,7 +87,7 @@ IF errorlevel 1 (
 goto skipinstallpython
 :installpython
 ECHO %info_h2%Installing Python...%ansi_end%
-call mkdir %UserProfile%\Desota\Portables
+call mkdir %UserProfile%\Desota\Portables > NUL 2>NUL
 IF %PROCESSOR_ARCHITECTURE%==AMD64 powershell -command "Invoke-WebRequest -Uri %python64% -OutFile ~\python3_installer.exe" && start /B /WAIT %UserProfile%\python3_installer.exe /quiet InstallAllUsers=0 PrependPath=1 Include_test=0 TargetDir=%UserProfile%\Desota\Portables\python3 && del %UserProfile%\python3_installer.exe && goto skipinstallpython
 IF %PROCESSOR_ARCHITECTURE%==x86 powershell -command "Invoke-WebRequest -Uri %python32% -OutFile ~\python3_installer.exe" && start /B /WAIT %UserProfile%\python3_installer.exe /quiet InstallAllUsers=0 PrependPath=1 Include_test=0 TargetDir=%UserProfile%\Desota\Portables\python3 && del %UserProfile%\python3_installer.exe && goto skipinstallpython
 IF NOT EXIST %UserProfile%\Desota\Portables\python3 (
@@ -101,17 +100,17 @@ ELSE (
 )
 :skipinstallpython
 
-ECHO %info_h1%Step 4 - Clone Project from GitHub%ansi_end%
+ECHO %info_h1%Step 4/9 - Clone Project from GitHub%ansi_end%
 :: GIT MODEL CLONE
-git --version 3>NUL
+git --version 3  > NUL 2>NUL
 IF NOT errorlevel 1 (
     ::  Clone Descraper Repository
-    call git clone --branch %manager_git_branch% %manager_git% .
+    call git clone --branch %manager_git_branch% %manager_git% .  > NUL 2>NUL
     GOTO endgitclonemodel
 )
 :: PORTABLE GIT MODEL CLONE
 :: Install Portable Git
-call mkdir %UserProfile%\Desota\Portables > NUL
+call mkdir %UserProfile%\Desota\Portables  > NUL 2>NUL
 IF EXIST %UserProfile%\Desota\Portables\PortableGit GOTO clonerep
 
 %info_h2%Downloading Portable Git...%ansi_end%
@@ -120,12 +119,12 @@ IF %PROCESSOR_ARCHITECTURE%==x86 powershell -command "Invoke-WebRequest -Uri %gi
 
 :clonerep
 ECHO %info_h2%Cloning Project Repository...%ansi_end%
-call %UserProfile%\Desota\Portables\PortableGit\bin\git.exe clone --branch %manager_git_branch% %manager_git% . > NUL
+call %UserProfile%\Desota\Portables\PortableGit\bin\git.exe clone --branch %manager_git_branch% %manager_git% .  > NUL 2>NUL
 :endgitclonemodel
 
-ECHO %info_h1%Step 5 - Create Virtual Environment for Project%ansi_end%
+ECHO %info_h1%Step 5/9 - Create Virtual Environment for Project%ansi_end%
 :: Move into Project Folder
-call mkdir %UserProfile%\Desota\Portables > NUL
+call mkdir %UserProfile%\Desota\Portables  > NUL 2>NUL
 IF NOT EXIST %UserProfile%\Desota\Portables\miniconda3\condabin\conda.bat goto installminiconda
 :: Install Conda if Required
 goto skipinstallminiconda
@@ -138,17 +137,17 @@ IF %PROCESSOR_ARCHITECTURE%==x86 powershell -command "Invoke-WebRequest -Uri %mi
 
 :: Create/Activate Conda Virtual Environment
 ECHO %info_h2%Creating MiniConda Environment...%ansi_end% 
-call %UserProfile%\Desota\Portables\miniconda3\condabin\conda create --prefix ./env python=3.11 -y > NUL
-call %UserProfile%\Desota\Portables\miniconda3\condabin\conda activate ./env
+call %UserProfile%\Desota\Portables\miniconda3\condabin\conda create --prefix ./env python=3.11 -y  > NUL 2>NUL
+call %UserProfile%\Desota\Portables\miniconda3\condabin\conda activate ./env  > NUL 2>NUL
 
 :: Install required Libraries
-ECHO %info_h1%Step 6 - Install Project Libraries%ansi_end%
-call pip install -r requirements.txt > NUL
+ECHO %info_h1%Step 6/9 - Install Project Libraries%ansi_end%
+call pip install -r requirements.txt  > NUL 2>NUL
 
 :: Create App EXE
-ECHO %info_h1%Step 7 - Create APP .EXE%ansi_end%
-call pyinstaller -D --noconsole -n "Desota - Manager Tools" -i "%manager_path_install%\Assets\icon.ico" %manager_path_install%\app.py > NUL
-call %UserProfile%\Desota\Portables\miniconda3\condabin\conda deactivate
+ECHO %info_h1%Step 7/9 - Create APP .EXE%ansi_end%
+call pyinstaller -D --noconsole -n "Desota - Manager Tools" -i "%manager_path_install%\Assets\icon.ico" %manager_path_install%\app.py > NUL 2>NUL
+call %UserProfile%\Desota\Portables\miniconda3\condabin\conda deactivate  > NUL 2>NUL
 
 :: Create App ShortCut
 ECHO %info_h2%Creating APP Desktop Shortcut...%ansi_end%
@@ -157,22 +156,22 @@ echo sLinkFile = "%HOMEDRIVE%%HOMEPATH%\Desktop\Desota - Manager Tools.lnk" >> C
 echo Set oLink = oWS.CreateShortcut(sLinkFile) >> CreateShortcut.vbs
 echo oLink.TargetPath = "%HOMEDRIVE%%HOMEPATH%\Desota\DeManagerTools\dist\Desota - Manager Tools\Desota - Manager Tools.exe"  >> CreateShortcut.vbs
 echo oLink.Save >> CreateShortcut.vbs
-cscript CreateShortcut.vbs
-del CreateShortcut.vbs
+cscript CreateShortcut.vbs  > NUL 2>NUL
+del CreateShortcut.vbs  > NUL 2>NUL
 
 :: Create DeSOTA Configs
-ECHO %info_h1%Step 8 - Configure DeSOTA %ansi_end%
+ECHO %info_h1%Step 8/9 - Configure DeSOTA %ansi_end%
 IF NOT EXIST %desota_root_path%\Configs (
     ECHO %info_h2%Creating DeSOTA Configs...%ansi_end% 
     mkdir %desota_root_path%\Configs
-    call copy %manager_path_install%\Assets\services.config_template.yaml %desota_root_path%\Configs\services.config.yaml
-    call copy %manager_path_install%\Assets\user.config_template.yaml %desota_root_path%\Configs\user.config.yaml
-    call %manager_path_install%\env\python %manager_path_install%\Tools\SetUserConfigs.py --key system --value win
+    call copy %manager_path_install%\Assets\services.config_template.yaml %desota_root_path%\Configs\services.config.yaml  > NUL 2>NUL
+    call copy %manager_path_install%\Assets\user.config_template.yaml %desota_root_path%\Configs\user.config.yaml  > NUL 2>NUL
+    call %manager_path_install%\env\python %manager_path_install%\Tools\SetUserConfigs.py --key system --value win  > NUL 2>NUL
 )
 
 
-ECHO %sucess%Step 9 - Starting DeSOTA - Manager Tools%ansi_end%
-start /B %manager_start%
+ECHO %sucess%Step 9/9 - Starting DeSOTA - Manager Tools%ansi_end%
+call %manager_start%
 
 :EOF_IN
 ECHO %info_h1%END of Installer - This window will close in 30 secs...%ansi_end%
