@@ -157,14 +157,15 @@ def get_app_status():
             return "0"
     with open(os.path.join(app_path, "status.txt"), "r") as fr:
         return fr.read().strip()
-
+def set_app_status(status):
+    with open(os.path.join(app_path, "status.txt"), "w") as fw:
+        fw.write(str(status))
 
 def main():
     # Get APP Status - Prevent Re-Open
     if get_app_status() == "1":
         return 0
-    with open(os.path.join(app_path, "status.txt"), "w") as fw:
-        fw.write("1")
+    set_app_status(1)
 
     # Memorize User Theme
     user_theme = get_user_theme()
@@ -178,6 +179,7 @@ def main():
         except:
             _event = sg.WIN_CLOSED
         if _event == sg.WIN_CLOSED or _event == "Close":
+            set_app_status(0)
             sgui.root.close()    
             break
         #access all the values and if selected add them to a string
