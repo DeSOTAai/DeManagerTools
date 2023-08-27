@@ -81,7 +81,7 @@ class SGui():
             ]
         # Models Available
         else:
-            pass
+            return []
     
     # TAB 2 - Models Instalation
     def construct_install_tab(self):
@@ -130,33 +130,6 @@ class SGui():
             [sg.Column(_install_layout, size=(600,300), scrollable=True)],
             [sg.Button('Start Instalation', key="startInstall")]
         ]
-    
-    def construct_install_tab_bu(self):
-        _install_layout = []
-        # Required DeSOTA Services
-        _req_serv = []
-        for tmp_req_serv in self.tools_services:
-            if not self.user_config['models'] or tmp_req_serv not in self.user_config['models']:
-                _req_serv.append(tmp_req_serv)
-        if _req_serv:
-            _install_layout.append([sg.Text('Required Desota Services', font=self.title_f)])
-            for _r_q in _req_serv:
-                _install_layout.append([sg.Checkbox(_r_q, default=True, disabled=True, key=f"SERVICE {_r_q}")])
-            _install_layout.append([sg.HorizontalSeparator()])
-            
-            
-        _install_layout.append([sg.Text('Available Models', font=self.title_f)])
-        for _k, _v in self.services_config['desota_services'].items():
-            if self.user_config['models'] and _k in self.user_config['models'] or _k in self.tools_services:
-                continue
-            _install_layout.append([sg.Checkbox(_k, key=f"SERVICE {_k}")])
-
-        return [
-            # [sg.Slider(range=(1, 20), default_value=5, orientation='v', size=(10,20))],
-            [sg.Text('Select the services to be installed', font=self.header_f)],
-            [sg.Column(_install_layout, size=(600,300), scrollable=True)],
-            [sg.Button('Start Instalation', key="startInstall")]
-        ]
 
     # TAB 3 - DeSOTA API Key
     def construct_api_tab(self):
@@ -187,7 +160,7 @@ class SGui():
         self.root[ self.tab_keys[1] ].select()
 
 
-
+    # Class - main
     def listener(self):
         #Read  values entered by user
         return self.root.read()
