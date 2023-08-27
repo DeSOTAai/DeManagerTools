@@ -247,6 +247,7 @@ def main():
                     sgui.root['installPBAR'].update(current_count=_curr_prog)
                     if _curr_prog == 100:
                         os.remove(_install_prog_file)
+                        bm.update_models_stopper(sgui.user_config, sgui.services_config, _models_2_install)
                         break
                 sgui.root.close()
                 sgui = SGui(get_user_theme())
