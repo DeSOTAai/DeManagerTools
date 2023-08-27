@@ -71,7 +71,10 @@ class BatManager:
         if not os.path.exists(_service_tools_folder):
             os.mkdir(_service_tools_folder)
         # 1 - Compare user_models with new installed models
-        _old_models = list([ m for m,v in user_conf["models"].items()])
+        if user_conf["models"]:
+            _old_models = list([ m for m,v in user_conf["models"].items()])
+        else:
+            _old_models = []
         _res_models = _old_models
         
         for _new_service in models_list:
