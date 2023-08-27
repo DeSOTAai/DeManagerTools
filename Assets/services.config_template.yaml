@@ -1,8 +1,8 @@
 ## Get to know if any Service is running
-services_status: null
+services_status: false
 
-## DeSOTA Services Configs
-desota_services: {
+## DeSOTA Services Params
+services_params: {
     # DeSOTA models runner
     desotaai/derunner: {
         win: {
@@ -19,7 +19,7 @@ desota_services: {
             service_path: Desota\DeRunner\executables\Linux,
             installer: ,
             uninstaller: ,
-            installer_args: ,+
+            installer_args: ,
             uninstaller_args: ,
             starter: ,
             stoper: ,

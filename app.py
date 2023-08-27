@@ -5,7 +5,9 @@ import PySimpleGUI as sg
 import yaml
 from yaml.loader import SafeLoader
 DEBUG = True
-DESOTA_REQUIRED_SERVICES = ["desotaai/derunner"]
+DESOTA_REQUIRED_SERVICES = {    # Desc -> Service: Checkbox Disabled
+    "desotaai/derunner": True
+}
 
 user_path=os.path.expanduser('~')
 desota_root_path=os.path.join(user_path, "Desota")
@@ -28,7 +30,7 @@ class SGui():
         self.services_config = SERVICES_CONF
         self.user_config = USER_CONF
         self.required_services = DESOTA_REQUIRED_SERVICES
-
+        self.system = self.user_config['system']
         #define theme
         sg.theme(in_theme)
         
@@ -81,6 +83,53 @@ class SGui():
     
     # TAB 2 - Models Instalation
     def construct_install_tab(self):
+        _install_layout = []
+        # Desota Tools Services
+        _req_services_header = False
+        for _desota_serv, _cb_disabled in self.required_services.items():
+            if not self.user_config['models'] or _desota_serv not in self.user_config['models']:
+                if not _req_services_header:
+                    _req_services_header = True
+                    _install_layout.append([sg.Text('Desota Tools Services', font=self.title_f)])
+                _install_layout.append([sg.Checkbox(_desota_serv, default=True, disabled=_cb_disabled, key=f"SERVICE {_desota_serv}")])
+
+        if _req_services_header:
+            _install_layout.append([sg.HorizontalSeparator()])
+
+        # TODO: Upgrade Models
+        _upgrade_models_header = False
+        for _k, _v in self.services_config['services_params'].items():
+            if _v["submodel"] == True  or _k in self.required_services:
+                continue
+            _latest_model_version = _v[self.system]['version']
+            if not (self.user_config['models'] and _k in self.user_config['models'] and self.user_config['models'][_k] != _latest_model_version):
+                continue
+            if not _upgrade_models_header:
+                _upgrade_models_header = True
+                _install_layout.append([sg.Text('Upgradable Models Availabe', font=self.title_f)])
+            _install_layout.append([sg.Checkbox(_k, key=f"SERVICE {_k}")])
+
+        if _upgrade_models_header:
+            _install_layout.append([sg.HorizontalSeparator()])
+        
+        # Available Uninstalled Services
+        _available_models_header = False
+        for _k, _v in self.services_config['services_params'].items():
+            if (self.user_config['models'] and _k in self.user_config['models'] ) or (_v["submodel"] == True) or (_k in self.required_services):
+                continue
+            if not _available_models_header:
+                _available_models_header = True
+                _install_layout.append([sg.Text('Available Models', font=self.title_f)])
+            _install_layout.append([sg.Checkbox(_k, key=f"SERVICE {_k}")])
+
+        
+        return [
+            [sg.Text('Select the services to be installed', font=self.header_f)],
+            [sg.Column(_install_layout, size=(600,300), scrollable=True)],
+            [sg.Button('Start Instalation', key="startInstall")]
+        ]
+    
+    def construct_install_tab_bu(self):
         _install_layout = []
         # Required DeSOTA Services
         _req_serv = []
@@ -149,6 +198,9 @@ def get_user_theme():
             return "DarkBlue"
     with open(os.path.join(app_path, "user_theme.txt"), "r") as fr:
         return fr.read().strip()
+def set_user_theme(theme):
+    with open(os.path.join(app_path, "user_theme.txt"), "w") as fw:
+        fw.write(theme)
     
 def get_app_status():
     if not os.path.isfile(os.path.join(app_path, "status.txt")):
@@ -194,9 +246,13 @@ def main():
         elif _event == "selectTheme":
             sgui.root.close()
             sgui = SGui(_values["selectTheme"])
-            with open(os.path.join(app_path, "user_theme.txt"), "w") as fw:
-                fw.write(_values["selectTheme"])
-        
+            set_user_theme(_values["selectTheme"])
+        elif _event == "startInstall":
+            _models_2_install = []
+            for _k, _v in _values.items():
+                if isinstance(_k, str) and "SERVICE" in _k and _v:
+                    _models_2_install.append(_k.split(' ')[1].strip())
+            print(f" [ DEBUG ] -> Models to install = {_models_2_install} ")
         
 if __name__ == "__main__":
     main()

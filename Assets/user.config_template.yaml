@@ -2,7 +2,5 @@
 api_key: null
 # User Models
 models: null
-# Models Versions
-models_version: null
 # User System
 system: null
