@@ -37,23 +37,30 @@ class BatManager:
             "cls\n"
         ]
         _tmp_file_lines += self.get_admin
-        # 2 - Iterate thru instalation models
-        for model in models_list:
-            # 2.1 - Append Models Installer
+        
+        # 2 - Create install_progrss.txt
+        _tmp_file_lines.append(f'ECHO 0 > {app_path}\install_prograss.txt')
+
+        # 3 - Iterate thru instalation models
+        for count, model in enumerate(models_list):
+            # 3.1 - Append Models Installer
             _model_params = services_conf['services_params'][model]
             _installer_url = _model_params[self.system]['installer']
             _installer_args = _model_params[self.system]['installer_args']
             _model_version = _model_params[self.system]['version']
             _installer_name = _installer_url.split('/')[-1]
             _tmp_file_lines.append(f'powershell -command "Invoke-WebRequest -Uri {_installer_url} -OutFile ~\{_installer_name}" && start /B /WAIT %UserProfile%\{_installer_name} {" ".join(_installer_args)} && del %UserProfile%\{_installer_name}\n')
-            # 2.2 - Update user models
+            # 3.2 - Update user models
             _new_model = json.dumps({
                 model: _model_version
             }).replace(" ", "").replace('"', '\\"')
             _tmp_file_lines.append(f'call {app_path}\env\python {app_path}\Tools\SetUserConfigs.py --key models --value "{_new_model}"  > NUL 2>NUL\n')
-            # env\python Tools\SetUserConfigs.py -k models -v "{\"test\":\"how are you\"}"
+            # 3.3 - update install_progrss.txt
+            _tmp_file_lines.append(f'ECHO {count+1} > {app_path}\install_prograss.txt')
+
         # 4 - Delete Bat at end of instalation - retrieved from https://stackoverflow.com/a/20333152
         _tmp_file_lines.append('(goto) 2>nul & del "%~f0"\n')
+
         # 5 - Create Installer Bat
         with open(target_bat_path, "w") as fw:
             fw.writelines(_tmp_file_lines)

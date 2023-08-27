@@ -54,7 +54,7 @@ class SGui():
             [sg.Text('Theme: ', font=self.default_f, pad=((410,0),(0,0))), sg.Combo(values=self.themes, default_value=in_theme, enable_events=True, key='selectTheme')],
             [sg.TabGroup(
                 [[
-                    sg.Tab('Monitor Models', self.tab1, title_color='Red',border_width =10, background_color=None,tooltip='', element_justification= 'left', key=self.tab_keys[0]),
+                    sg.Tab('Models Dashboard', self.tab1, title_color='Red',border_width =10, background_color=None,tooltip='', element_justification= 'left', key=self.tab_keys[0]),
                     sg.Tab('Models Instalation', self.tab2,title_color='Blue',background_color=None, key=self.tab_keys[1]),
                     sg.Tab('DeSOTA API Key', self.tab3,title_color='Black',background_color=None,tooltip='', key=self.tab_keys[2])
                 ]], 
@@ -71,7 +71,7 @@ class SGui():
         self.root = sg.Window("Desota - Manager Tools",self.tabgrp, icon=os.path.join(app_path, "Assets", "icon.ico"))
 
     ## Utils
-    # TAB 1 - Monitor Models
+    # TAB 1 - Models Dashboard
     def construct_monitor_models_tab(self):
         # No Models Available
         if not self.user_config['models']:
@@ -127,7 +127,7 @@ class SGui():
         return [
             [sg.Text('Select the services to be installed', font=self.header_f)],
             [sg.Column(_install_layout, size=(600,300), scrollable=True)],
-            [sg.Button('Start Instalation', key="startInstall")]
+            [sg.Button('Start Instalation', key="startInstall"), sg.ProgressBar(100, orientation='h', expand_x=True, size=(20, 20),  key='installPBAR')]
         ]
 
     # TAB 3 - DeSOTA API Key
@@ -151,13 +151,10 @@ class SGui():
                 [sg.Text('4. Insert DeSOTA API Key', font=self.default_f),sg.Input('',key='inpKey')],
                 [sg.Button('Set API Key', key="setAPIkey")]
             ]
-        
-        
 
     # Move Within Tkinter Tabs
     def move_2_tab2(self):
         self.root[ self.tab_keys[1] ].select()
-
 
     # Class - main
     def listener(self):
@@ -193,11 +190,8 @@ def main():
         return 0
     set_app_status(1)
 
-    # Memorize User Theme
-    user_theme = get_user_theme()
-
     # Start APP
-    sgui = SGui(user_theme)
+    sgui = SGui(get_user_theme())
     while True:
         try:
             #Read  values entered by user
@@ -226,11 +220,28 @@ def main():
             for _k, _v in _values.items():
                 if isinstance(_k, str) and "SERVICE" in _k and _v:
                     _models_2_install.append(_k.split(' ')[1].strip())
+            print(f" [ DEBUG ] -> Models to install = {_models_2_install} ")
+            _ammount_models = len(_models_2_install)
             if sgui.system == "win":
                 bm = BatManager()
                 bm.create_models_instalation(sgui.services_config, _models_2_install, os.path.join(out_bat_folder, "desota_tmp_installer.bat"))
                 subprocess.call([f'{os.path.join(out_bat_folder, "desota_tmp_installer.bat")}'])
-            print(f" [ DEBUG ] -> Models to install = {_models_2_install} ")
+                sgui.root['startInstall'].update(disabled=True)
+                sgui.root['installPBAR'].update(current_count=0)
+                _install_prog_file = os.path.join(app_path, "install_prograss.txt")
+                while True:
+                    if not os.path.isfile(_install_prog_file):
+                        continue
+                    with open(_install_prog_file, "r") as fr:
+                        _curr_prog = int(fr.read())
+                    sgui.root['installPBAR'].update(current_count=_curr_prog)
+                    if _ammount_models == _curr_prog:
+                        os.remove(_install_prog_file)
+                        sgui.root.close()
+                        sgui = SGui(get_user_theme())
+
+
+
         
 if __name__ == "__main__":
     main()
