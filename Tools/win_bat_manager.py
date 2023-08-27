@@ -39,7 +39,7 @@ class BatManager:
         _tmp_file_lines += self.get_admin
         
         # 2 - Create install_progrss.txt
-        _tmp_file_lines.append(f'ECHO 0 > {app_path}\install_prograss.txt')
+        _tmp_file_lines.append(f'ECHO 0 > {app_path}\install_progress.txt\n')
 
         # 3 - Iterate thru instalation models
         for count, model in enumerate(models_list):
@@ -56,7 +56,7 @@ class BatManager:
             }).replace(" ", "").replace('"', '\\"')
             _tmp_file_lines.append(f'call {app_path}\env\python {app_path}\Tools\SetUserConfigs.py --key models --value "{_new_model}"  > NUL 2>NUL\n')
             # 3.3 - update install_progrss.txt
-            _tmp_file_lines.append(f'ECHO {count+1} > {app_path}\install_prograss.txt')
+            _tmp_file_lines.append(f'ECHO {count+1} > {app_path}\install_progress.txt\n')
 
         # 4 - Delete Bat at end of instalation - retrieved from https://stackoverflow.com/a/20333152
         _tmp_file_lines.append('(goto) 2>nul & del "%~f0"\n')

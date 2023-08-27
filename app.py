@@ -228,7 +228,7 @@ def main():
                 subprocess.call([f'{os.path.join(out_bat_folder, "desota_tmp_installer.bat")}'])
                 sgui.root['startInstall'].update(disabled=True)
                 sgui.root['installPBAR'].update(current_count=0)
-                _install_prog_file = os.path.join(app_path, "install_prograss.txt")
+                _install_prog_file = os.path.join(app_path, "install_progress.txt")
                 while True:
                     if not os.path.isfile(_install_prog_file):
                         continue
@@ -240,6 +240,7 @@ def main():
                         os.remove(_install_prog_file)
                         sgui.root.close()
                         sgui = SGui(get_user_theme())
+                        break
 
 
 
