@@ -169,7 +169,7 @@ class SGui():
         # TODO . Discuss w/ Kris what about if people have models installed but need key authenticato for new models...
         # Models Installed
         else:
-            _strip_models = [ m.strip() for m in self.user_config['models']]
+            _strip_models = [ m.strip() for m, v in self.user_config['models'].items()]
             _str_models = ",".join(_strip_models)
             return [
                 [sg.Text('Create your API Key', font=self.header_f)],  # Title
