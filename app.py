@@ -233,9 +233,10 @@ def main():
                     if not os.path.isfile(_install_prog_file):
                         continue
                     with open(_install_prog_file, "r") as fr:
-                        _curr_prog = int(fr.read())
+                        _curr_prog_file = int(fr.read())
+                    _curr_prog = (_curr_prog_file/_ammount_models) * 100
                     sgui.root['installPBAR'].update(current_count=_curr_prog)
-                    if _ammount_models == _curr_prog:
+                    if _curr_prog == 100:
                         os.remove(_install_prog_file)
                         sgui.root.close()
                         sgui = SGui(get_user_theme())
