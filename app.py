@@ -101,15 +101,14 @@ class SGui():
         # TODO: Upgrade Models
         _upgrade_models_header = False
         for _k, _v in self.services_config['services_params'].items():
-            if _v["submodel"] == True  or _k in self.tools_services:
+            if _v["submodel"] == True:
                 continue
             _latest_model_version = _v[self.system]['version']
-            if not (self.user_config['models'] and _k in self.user_config['models'] and self.user_config['models'][_k] != _latest_model_version):
-                continue
-            if not _upgrade_models_header:
-                _upgrade_models_header = True
-                _install_layout.append([sg.Text('Upgradable Models Availabe', font=self.title_f)])
-            _install_layout.append([sg.Checkbox(_k, key=f"SERVICE {_k}")])
+            if self.user_config['models'] and _k in self.user_config['models'] and self.user_config['models'][_k] != _latest_model_version:
+                if not _upgrade_models_header:
+                    _upgrade_models_header = True
+                    _install_layout.append([sg.Text('Upgradable Services Availabe', font=self.title_f)])
+                _install_layout.append([sg.Checkbox(_k, key=f"SERVICE {_k}")])
 
         if _upgrade_models_header:
             _install_layout.append([sg.HorizontalSeparator()])
