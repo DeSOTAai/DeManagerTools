@@ -2,16 +2,18 @@ import os
 import webbrowser
 import json
 import PySimpleGUI as sg
-import yaml
-from yaml.loader import SafeLoader
+from Tools.win_bat_manager import BatManager
+import subprocess
+
 DEBUG = True
-DESOTA_REQUIRED_SERVICES = {    # Desc -> Service: Checkbox Disabled
+DESOTA_TOOLS_SERVICES = {    # Desc -> Service: Checkbox Disabled
     "desotaai/derunner": True
 }
 
 user_path=os.path.expanduser('~')
 desota_root_path=os.path.join(user_path, "Desota")
 app_path=os.path.join(desota_root_path, "DeManagerTools")
+out_bat_folder=os.path.join(app_path, "executables", "Windows")
 
 # import pyyaml module
 import yaml
@@ -29,7 +31,7 @@ class SGui():
         self.debug = DEBUG
         self.services_config = SERVICES_CONF
         self.user_config = USER_CONF
-        self.required_services = DESOTA_REQUIRED_SERVICES
+        self.tools_services = DESOTA_TOOLS_SERVICES
         self.system = self.user_config['system']
         #define theme
         sg.theme(in_theme)
@@ -86,7 +88,7 @@ class SGui():
         _install_layout = []
         # Desota Tools Services
         _req_services_header = False
-        for _desota_serv, _cb_disabled in self.required_services.items():
+        for _desota_serv, _cb_disabled in self.tools_services.items():
             if not self.user_config['models'] or _desota_serv not in self.user_config['models']:
                 if not _req_services_header:
                     _req_services_header = True
@@ -99,7 +101,7 @@ class SGui():
         # TODO: Upgrade Models
         _upgrade_models_header = False
         for _k, _v in self.services_config['services_params'].items():
-            if _v["submodel"] == True  or _k in self.required_services:
+            if _v["submodel"] == True  or _k in self.tools_services:
                 continue
             _latest_model_version = _v[self.system]['version']
             if not (self.user_config['models'] and _k in self.user_config['models'] and self.user_config['models'][_k] != _latest_model_version):
@@ -115,7 +117,7 @@ class SGui():
         # Available Uninstalled Services
         _available_models_header = False
         for _k, _v in self.services_config['services_params'].items():
-            if (self.user_config['models'] and _k in self.user_config['models'] ) or (_v["submodel"] == True) or (_k in self.required_services):
+            if (self.user_config['models'] and _k in self.user_config['models'] ) or (_v["submodel"] == True) or (_k in self.tools_services):
                 continue
             if not _available_models_header:
                 _available_models_header = True
@@ -133,7 +135,7 @@ class SGui():
         _install_layout = []
         # Required DeSOTA Services
         _req_serv = []
-        for tmp_req_serv in self.required_services:
+        for tmp_req_serv in self.tools_services:
             if not self.user_config['models'] or tmp_req_serv not in self.user_config['models']:
                 _req_serv.append(tmp_req_serv)
         if _req_serv:
@@ -145,7 +147,7 @@ class SGui():
             
         _install_layout.append([sg.Text('Available Models', font=self.title_f)])
         for _k, _v in self.services_config['desota_services'].items():
-            if self.user_config['models'] and _k in self.user_config['models'] or _k in self.required_services:
+            if self.user_config['models'] and _k in self.user_config['models'] or _k in self.tools_services:
                 continue
             _install_layout.append([sg.Checkbox(_k, key=f"SERVICE {_k}")])
 
@@ -252,6 +254,10 @@ def main():
             for _k, _v in _values.items():
                 if isinstance(_k, str) and "SERVICE" in _k and _v:
                     _models_2_install.append(_k.split(' ')[1].strip())
+            if sgui.system == "win":
+                bm = BatManager()
+                bm.create_models_instalation(sgui.services_config, _models_2_install, os.path.join(out_bat_folder, "desota_tmp_installer.bat"))
+                subprocess.call([f'{os.path.join(out_bat_folder, "desota_tmp_installer.bat")}'])
             print(f" [ DEBUG ] -> Models to install = {_models_2_install} ")
         
 if __name__ == "__main__":
