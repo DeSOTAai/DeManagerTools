@@ -22,17 +22,18 @@ config_folder=os.path.join(desota_root_path, "Configs")  # User | Services
 # Open the file and load the file
 with open(os.path.join(config_folder, "services.config.yaml")) as f:
     SERVICES_CONF = yaml.load(f, Loader=SafeLoader)
-with open(os.path.join(config_folder, "user.config.yaml")) as f:
-    USER_CONF = yaml.load(f, Loader=SafeLoader)
 
 # Construct APP with PySimpleGui
 class SGui():
     def __init__(self, in_theme) -> None:
         self.debug = DEBUG
-        self.services_config = SERVICES_CONF
-        self.user_config = USER_CONF
         self.tools_services = DESOTA_TOOLS_SERVICES
+
+        self.services_config = SERVICES_CONF
+        with open(os.path.join(config_folder, "user.config.yaml")) as f:
+            self.user_config = yaml.load(f, Loader=SafeLoader)
         self.system = self.user_config['system']
+        
         #define theme
         sg.theme(in_theme)
         
@@ -232,13 +233,16 @@ def main():
                 _mem_prog = 0
                 while True:
                     if not os.path.isfile(_install_prog_file):
-                        continue
-                    with open(_install_prog_file, "r") as fr:
-                        _curr_prog_file = int(fr.read().replace("\n", "").strip())
-                    if _mem_prog == _curr_prog_file:
-                        continue
-                    print(f" [ DEBUG ] -> _curr_prog_file = {_curr_prog_file} ")
-                    _mem_prog = _curr_prog_file
+                        _curr_prog_file = 0
+                    else:
+                        with open(_install_prog_file, "r") as fr:
+                            _curr_prog_file = fr.read().replace("\n", "").strip()
+                    if _curr_prog_file == "":
+                        _curr_prog_file = _mem_prog
+                    else:
+                        _curr_prog_file = int(_curr_prog_file)
+                    if _mem_prog != _curr_prog_file:
+                        _mem_prog = _curr_prog_file
                     _curr_prog = (_curr_prog_file/_ammount_models) * 100
                     sgui.root['installPBAR'].update(current_count=_curr_prog)
                     if _curr_prog == 100:
