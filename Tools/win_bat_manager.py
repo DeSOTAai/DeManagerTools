@@ -30,6 +30,7 @@ class BatManager:
     def __init__(self) -> None:
         self.system = "win"
         self.get_admin = GET_ADMIN
+        self.service_tools_folder = os.path.join(app_path, "Tools", "Services")
     def create_models_instalation(self, services_conf, models_list, target_bat_path):
         # 1 - Get Admin Previleges 
         _tmp_file_lines = [
@@ -67,15 +68,13 @@ class BatManager:
 
     # Bat to Stop ALL Desota Services
     def update_models_stopper(self, user_conf, services_conf, models_list):
-        _service_tools_folder = os.path.join(app_path, "Tools", "Services")
-        if not os.path.exists(_service_tools_folder):
-            os.mkdir(_service_tools_folder)
+        if not os.path.exists(self.service_tools_folder):
+            os.mkdir(self.service_tools_folder)
         # 1 - Compare user_models with new installed models
         if user_conf["models"]:
-            _old_models = list([ m for m,v in user_conf["models"].items()])
+            _res_models = [ m for m,v in user_conf["models"].items()]
         else:
-            _old_models = []
-        _res_models = _old_models
+            _res_models = []
         
         for _new_service in models_list:
             if _new_service in _res_models:
@@ -87,6 +86,10 @@ class BatManager:
             "cls\n"
         ]
         _tmp_file_lines += self.get_admin
+
+        # 2 - Stop All Services
+        _gen_serv_stoper = os.path.join(self.service_tools_folder, "models_stopper.bat")
+        _tmp_file_lines.append(f"start /B /WAIT {_gen_serv_stoper}\n")
         # 2 - Iterate thru instalation models
         for _model in _res_models:
             _model_param_path = services_conf["services_params"][_model][self.system]["service_path"]
@@ -97,12 +100,48 @@ class BatManager:
             _tmp_file_lines.append(f"start /B /WAIT {_model_stop_path}\n")
             
         # 3 - Create Installer Bat
-        with open(os.path.join(_service_tools_folder, "models_stopper.bat"), "w") as fw:
+        with open(os.path.join(self.service_tools_folder, "models_stopper.bat"), "w") as fw:
             fw.writelines(_tmp_file_lines)
 
     # Bat 2 Starter for models that run constantly
-    def update_models_starter(self, user_conf, services_conf, models_list, target_bat_path):
-        print("Start")
+    def update_models_starter(self, user_conf, services_conf, models_list):
+        if not os.path.exists(self.service_tools_folder):
+            os.mkdir(self.service_tools_folder)
+        # 1 - Compare user_models with new installed models
+        if user_conf["models"]:
+            _res_models = [ m for m,v in user_conf["models"].items()]
+        else:
+            _res_models = []
+        
+        for _new_service in models_list:
+            if _new_service in _res_models:
+                continue
+            _res_models.append(_new_service)
+        # 2 - Get Admin Previleges 
+        _tmp_file_lines = [
+            "@ECHO OFF\n",
+            "cls\n"
+        ]
+        _tmp_file_lines += self.get_admin
+        # 3 - Iterate thru instalation models
+        _exist_run_constantly_model = False
+        for _model in _res_models:
+            _model_param_run_constantly = services_conf["services_params"][_model]["run_constantly"]
+            if not _model_param_run_constantly:
+                continue
+            if not _exist_run_constantly_model:
+                _exist_run_constantly_model = True
+            _model_param_path = services_conf["services_params"][_model][self.system]["service_path"]
+            _model_param_start = services_conf["services_params"][_model][self.system]["starter"]
+
+            _model_start_path = os.path.join(user_path, _model_param_path, _model_param_start)
+            
+            _tmp_file_lines.append(f"start /B /WAIT {_model_start_path}\n")
+            
+        # 4 - Create Installer Bat
+        if _exist_run_constantly_model:
+            with open(os.path.join(self.service_tools_folder, "models_stopper.bat"), "w") as fw:
+                fw.writelines(_tmp_file_lines)
 
     def update_desota_uninstaller(self, user_conf, services_conf, models_list, target_bat_path):
         # 1 - Stop Models

@@ -248,10 +248,10 @@ def main():
                     if _curr_prog == 100:
                         os.remove(_install_prog_file)
                         bm.update_models_stopper(sgui.user_config, sgui.services_config, _models_2_install)
+                        bm.update_models_starter(sgui.user_config, sgui.services_config, _models_2_install)
                         break
                 sgui.root.close()
                 sgui = SGui(get_user_theme())
-
 
 
         
