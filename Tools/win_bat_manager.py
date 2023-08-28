@@ -42,6 +42,11 @@ class BatManager:
         # 2 - Create install_progrss.txt
         _tmp_file_lines.append(f'ECHO 0 > {app_path}\install_progress.txt\n')
 
+        # 2 - Stop All Services
+        _gen_serv_stoper = os.path.join(self.service_tools_folder, "models_stopper.bat")
+        if os.path.isfile(_gen_serv_stoper):
+            _tmp_file_lines.append(f"start /B /WAIT {_gen_serv_stoper}\n")
+
         # 3 - Iterate thru instalation models
         for count, model in enumerate(models_list):
             # 3.1 - Append Models Installer
@@ -80,17 +85,14 @@ class BatManager:
             if _new_service in _res_models:
                 continue
             _res_models.append(_new_service)
-        # 1 - Get Admin Previleges 
+        # 2 - Get Admin Previleges 
         _tmp_file_lines = [
             "@ECHO OFF\n",
             "cls\n"
         ]
         _tmp_file_lines += self.get_admin
-
-        # 2 - Stop All Services
-        _gen_serv_stoper = os.path.join(self.service_tools_folder, "models_stopper.bat")
-        _tmp_file_lines.append(f"start /B /WAIT {_gen_serv_stoper}\n")
-        # 2 - Iterate thru instalation models
+        
+        # 3 - Iterate thru instalation models
         for _model in _res_models:
             _model_param_path = services_conf["services_params"][_model][self.system]["service_path"]
             _model_param_stop = services_conf["services_params"][_model][self.system]["stoper"]
@@ -99,11 +101,11 @@ class BatManager:
             
             _tmp_file_lines.append(f"start /B /WAIT {_model_stop_path}\n")
             
-        # 3 - Create Installer Bat
+        # 4 - Create Installer Bat
         with open(os.path.join(self.service_tools_folder, "models_stopper.bat"), "w") as fw:
             fw.writelines(_tmp_file_lines)
 
-    # Bat 2 Starter for models that run constantly
+    # Bat to Starter for models that run constantly
     def update_models_starter(self, user_conf, services_conf, models_list):
         if not os.path.exists(self.service_tools_folder):
             os.mkdir(self.service_tools_folder)
