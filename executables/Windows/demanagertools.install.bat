@@ -23,6 +23,10 @@ set git32_portable=https://github.com/git-for-windows/git/releases/download/v2.4
 set miniconda64=https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86_64.exe
 set miniconda32=https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86.exe
 
+:: - DeSOTA Services Manager Files
+set stop_all_services=%UserProfile%\Desota\Configs\Services\models_stopper.bat
+set start_req_services=%UserProfile%\Desota\Configs\Services\models_starter.bat
+
 :: - .bat ANSI Colored CLI
 set header=
 set info=
@@ -57,7 +61,12 @@ IF NOT EXIST %manager_path_install% (
     ECHO %info_h2%New install%ansi_end%
     GOTO endofreinstall
 )
-ECHO %info_h2%Re-Instalation required - Start Uninstall...%ansi_end%
+ECHO %info_h2%Re-Instalation required%ansi_end%
+IF EXIST %stop_all_services% (
+    ECHO Stopping All Desota Services...
+    start /B /WAIT %stop_all_services%
+)
+ECHO Start Uninstalation...
 call %manager_uninstall% /Q
 IF EXIST %manager_path_install% (
     GOTO EOF_IN_noTimeOUT
@@ -168,10 +177,16 @@ IF NOT EXIST %desota_root_path%\Configs\user.config.yaml (
 )
 
 
-ECHO %sucess%Step 9/9 - Starting DeSOTA - Manager Tools%ansi_end%
+ECHO %info_h1%Step 9/9 - End of Installer%ansi_end%
+IF EXIST %start_req_services% (
+    ECHO %info_h2%Starting DeSOTA Services that run constantly...%ansi_end%
+    start /B /WAIT %start_req_services%
+)
+ECHO %sucess%Starting DeSOTA - Manager Tools%ansi_end%
+ECHO %info_h1%You can close this window!%ansi_end%
 call %manager_start%
 
-ECHO %info_h1%END of Installer - This window will close in 30 secs...%ansi_end%
+ECHO %info_h1%This window will close in 30 secs...%ansi_end%
 :EOF_IN
 call timeout 30
 :EOF_IN_noTimeOUT

@@ -10,8 +10,8 @@ DESOTA_TOOLS_SERVICES = {    # Desc -> Service: Checkbox Disabled
     "desotaai/derunner": True
 }
 EVENT_TO_METHOD = {
-    "TABMOVE ": "move_2_tab",
-    "WEBREQUEST ": "open_url",
+    "TABMOVE": "move_2_tab",
+    "WEBREQUEST": "open_url",
     "selectTheme": "theme_select",
     "startInstall": "install_models"
 }
@@ -235,23 +235,25 @@ class SGui():
                     _mem_prog = _curr_prog_file
                 _curr_prog = (_curr_prog_file/_ammount_models) * 100
                 self.root['installPBAR'].update(current_count=_curr_prog)
-                _ml_res = self.main_loop(ignore_event=["selectTheme"])
-                #TODO : 
-                # if _ml_res == "-close-"
-                # if _ml_res == "-restart-"
+                
                 if _curr_prog == 100:
                     os.remove(_install_prog_file)
                     wbm.update_models_stopper()
                     break
+                else:
+                    _ml_res = self.main_loop(ignore_event=["selectTheme"], timeout=500)
+                    #TODO : 
+                    # if _ml_res == "-close-"
+                    # if _ml_res == "-restart-"
             self.root.close()
             return "-restart-"
 
 
     # Get Class Method From Event and Run Method
-    def main_loop(self, ignore_event=[]):
+    def main_loop(self, ignore_event=[], timeout=None):
         try:
             #Read  values entered by user
-            _event, _values = self.root.read()
+            _event, _values = self.root.read(timeout=timeout)
         except:
             _event = sg.WIN_CLOSED
 
@@ -259,6 +261,8 @@ class SGui():
             self.set_app_status(0)
             self.root.close()    
             return "-close-"
+        elif _event == sg.TIMEOUT_KEY:
+            return "-timeout-"
         #access all the values and if selected add them to a string
         print(f" [ DEBUG ] -> event = {_event}")
         print(f" [ DEBUG ] -> values = {_values}")
@@ -270,7 +274,7 @@ class SGui():
                 _res_values = _values
             else:
                 _res_event = _event.split(" ")[0]
-                _res_event = f"{''.join((ce for ce in _res_event if not ce.isdigit()))} "
+                _res_event = ''.join((ce for ce in _res_event if not ce.isdigit()))
                 _res_values = _event.split(" ")[1]
 
             if _res_event in ignore_event:

@@ -31,7 +31,7 @@ class WinBatManager:
     def __init__(self, user_conf, services_conf, models_list) -> None:
         self.system = "win"
         self.get_admin = GET_ADMIN
-        self.service_tools_folder = os.path.join(app_path, "Tools", "Services")
+        self.service_tools_folder = os.path.join(config_folder, "Services")
         self.services_conf = services_conf
         self.models_list = models_list
         self.user_conf = user_conf
