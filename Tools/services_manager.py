@@ -114,6 +114,7 @@ class WinBatManager:
             _model_stop_path = os.path.join(user_path, _model_param_path, _model_param_stop)
             
             _tmp_file_lines.append(f"start /B /WAIT {_model_stop_path}\n")
+        _tmp_file_lines.append("exit\n")
             
         # 4 - Create Stopper Bat
         with open(os.path.join(self.service_tools_folder, "models_stopper.bat"), "w") as fw:
@@ -152,6 +153,7 @@ class WinBatManager:
 
             _model_start_path = os.path.join(user_path, _model_param_path, _model_param_start)
             _tmp_file_lines.append(f"start /B /WAIT {_model_start_path}\n")
+        _tmp_file_lines.append("exit\n")
             
         # 4 - Create Starter Bat
         if _exist_run_constantly_model:
