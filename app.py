@@ -148,7 +148,7 @@ class SGui():
         if _upgrade_models_header:
             _install_layout.append([sg.HorizontalSeparator()])
         
-        # Available Uninstalled Services
+        # Available Uninstalled Models
         _available_models_header = False
         for _k, _v in self.services_config['services_params'].items():
             if (self.user_config['models'] and _k in self.user_config['models'] ) or (_v["submodel"] == True) or (_k in self.tools_services):

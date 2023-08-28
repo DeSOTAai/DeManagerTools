@@ -117,8 +117,8 @@ services_params: {
         },
         description: WebScrape with assistance of AI Models,
         github: https://github.com/franciscomvargas/descraper,
-        run_constantly: false,
-        submodel: true
+        run_constantly: true,
+        submodel: false
     },
     franciscomvargas/descraper/html: {
         submodel: true,

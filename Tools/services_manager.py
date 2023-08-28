@@ -32,7 +32,7 @@ class WinBatManager:
         self.system = "win"
         self.get_admin = GET_ADMIN
         self.service_tools_folder = os.path.join(app_path, "Tools", "Services")
-    def create_models_instalation(self, services_conf, models_list, target_bat_path, start_installer=False):
+    def create_models_instalation(self, services_conf, models_list, target_bat_path, start_install=False):
         # 1 - Get Admin Previleges 
         _tmp_file_lines = [
             "@ECHO OFF\n",
@@ -73,7 +73,7 @@ class WinBatManager:
             fw.writelines(_tmp_file_lines)
 
         # 7 - Start Installer
-        if start_installer:
+        if start_install:
             subprocess.call([f'{target_bat_path}'])
 
     # Bat to Stop ALL Desota Services
