@@ -44,7 +44,7 @@ services_params: {
     # Models
     franciscomvargas/neuralqa/qa: {
         win: {
-            service_path: Desota\Desota_Models\NeuraQA\neuralqa\executables\Windows,
+            service_path: Desota\Desota_Models\NeuralQA\neuralqa\executables\Windows,
             installer: https://raw.githubusercontent.com/franciscomvargas/neuralqa/master/neuralqa/executables/Windows/neuralqa.install.bat,
             uninstaller: neuralqa.uninstall.bat,
             installer_args: [/reinstall],
