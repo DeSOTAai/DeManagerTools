@@ -214,9 +214,9 @@ class SGui():
         print(f" [ DEBUG ] -> Models to install = {_models_2_install} ")
         _ammount_models = len(_models_2_install)
         if self.system == "win":
-            wbm = WinBatManager()
+            wbm = WinBatManager(self.user_config, self.services_config, _models_2_install)
             _installer_tmp_path = os.path.join(out_bat_folder, "desota_tmp_installer.bat")
-            wbm.create_models_instalation(self.services_config, _models_2_install, _installer_tmp_path, start_install=True)
+            wbm.create_models_instalation(_installer_tmp_path, start_install=True)
             self.root['startInstall'].update(disabled=True)
             self.root['installPBAR'].update(current_count=0)
             _install_prog_file = os.path.join(app_path, "install_progress.txt")
@@ -241,8 +241,7 @@ class SGui():
                 # if _ml_res == "-restart-"
                 if _curr_prog == 100:
                     os.remove(_install_prog_file)
-                    wbm.update_models_stopper(self.user_config, self.services_config, _models_2_install)
-                    wbm.update_models_starter(self.user_config, self.services_config, _models_2_install, start_models=True)
+                    wbm.update_models_stopper()
                     break
             self.root.close()
             return "-restart-"

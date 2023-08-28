@@ -28,11 +28,16 @@ GET_ADMIN = [
 ]
 
 class WinBatManager:
-    def __init__(self) -> None:
+    def __init__(self, user_conf, services_conf, models_list) -> None:
         self.system = "win"
         self.get_admin = GET_ADMIN
         self.service_tools_folder = os.path.join(app_path, "Tools", "Services")
-    def create_models_instalation(self, services_conf, models_list, target_bat_path, start_install=False):
+        self.services_conf = services_conf
+        self.models_list = models_list
+        self.user_conf = user_conf
+
+    # Temp Bat to Install New Desota Services
+    def create_models_instalation(self, target_bat_path, start_install=False):
         # 1 - Get Admin Previleges 
         _tmp_file_lines = [
             "@ECHO OFF\n",
@@ -49,9 +54,9 @@ class WinBatManager:
             _tmp_file_lines.append(f"start /B /WAIT {_gen_serv_stoper}\n")
 
         # 4 - Iterate thru instalation models
-        for count, model in enumerate(models_list):
+        for count, model in enumerate(self.models_list):
             # 4.1 - Append Models Installer
-            _model_params = services_conf['services_params'][model]
+            _model_params = self.services_conf['services_params'][model]
             _installer_url = _model_params[self.system]['installer']
             _installer_args = _model_params[self.system]['installer_args']
             _model_version = _model_params[self.system]['version']
@@ -65,6 +70,10 @@ class WinBatManager:
             # 4.3 - update install_progrss.txt
             _tmp_file_lines.append(f'ECHO {count+1} > {app_path}\install_progress.txt\n')
 
+        # 5 - Create Start Run Constantly Services
+        _models_start_path = self.update_models_starter()
+        _tmp_file_lines.append(f"start /B /WAIT {_models_start_path}\n")
+        
         # 5 - Delete Bat at end of instalation - retrieved from https://stackoverflow.com/a/20333152
         _tmp_file_lines.append('(goto) 2>nul & del "%~f0"\n')
 
@@ -77,16 +86,16 @@ class WinBatManager:
             subprocess.call([f'{target_bat_path}'])
 
     # Bat to Stop ALL Desota Services
-    def update_models_stopper(self, user_conf, services_conf, models_list):
+    def update_models_stopper(self):
         if not os.path.exists(self.service_tools_folder):
             os.mkdir(self.service_tools_folder)
         # 1 - Compare user_models with new installed models
-        if user_conf["models"]:
-            _res_models = [ m for m,v in user_conf["models"].items()]
+        if self.user_conf["models"]:
+            _res_models = [ m for m,v in self.user_conf["models"].items()]
         else:
             _res_models = []
         
-        for _new_service in models_list:
+        for _new_service in self.models_list:
             if _new_service in _res_models:
                 continue
             _res_models.append(_new_service)
@@ -99,8 +108,8 @@ class WinBatManager:
         
         # 3 - Iterate thru instalation models
         for _model in _res_models:
-            _model_param_path = services_conf["services_params"][_model][self.system]["service_path"]
-            _model_param_stop = services_conf["services_params"][_model][self.system]["stoper"]
+            _model_param_path = self.services_conf["services_params"][_model][self.system]["service_path"]
+            _model_param_stop = self.services_conf["services_params"][_model][self.system]["stoper"]
 
             _model_stop_path = os.path.join(user_path, _model_param_path, _model_param_stop)
             
@@ -111,16 +120,16 @@ class WinBatManager:
             fw.writelines(_tmp_file_lines)
 
     # Bat to Start models that run constantly
-    def update_models_starter(self, user_conf, services_conf, models_list, start_models=False):
+    def update_models_starter(self):
         if not os.path.exists(self.service_tools_folder):
             os.mkdir(self.service_tools_folder)
         # 1 - Compare user_models with new installed models
-        if user_conf["models"]:
-            _res_models = [ m for m,v in user_conf["models"].items()]
+        if self.user_conf["models"]:
+            _res_models = [ m for m,v in self.user_conf["models"].items()]
         else:
             _res_models = []
         
-        for _new_service in models_list:
+        for _new_service in self.models_list:
             if _new_service in _res_models:
                 continue
             _res_models.append(_new_service)
@@ -133,16 +142,15 @@ class WinBatManager:
         # 3 - Iterate thru instalation models
         _exist_run_constantly_model = False
         for _model in _res_models:
-            _model_param_run_constantly = services_conf["services_params"][_model]["run_constantly"]
+            _model_param_run_constantly = self.services_conf["services_params"][_model]["run_constantly"]
             if not _model_param_run_constantly:
                 continue
             if not _exist_run_constantly_model:
                 _exist_run_constantly_model = True
-            _model_param_path = services_conf["services_params"][_model][self.system]["service_path"]
-            _model_param_start = services_conf["services_params"][_model][self.system]["starter"]
+            _model_param_path = self.services_conf["services_params"][_model][self.system]["service_path"]
+            _model_param_start = self.services_conf["services_params"][_model][self.system]["starter"]
 
             _model_start_path = os.path.join(user_path, _model_param_path, _model_param_start)
-            
             _tmp_file_lines.append(f"start /B /WAIT {_model_start_path}\n")
             
         # 4 - Create Starter Bat
@@ -150,11 +158,11 @@ class WinBatManager:
             with open(os.path.join(self.service_tools_folder, "models_starter.bat"), "w") as fw:
                 fw.writelines(_tmp_file_lines)
 
-        # 5 - Start Models
-        if start_models:
-            subprocess.call([f'{os.path.join(self.service_tools_folder, "models_starter.bat")}'])
+        # Return Start Models .BAT PATH 
+        return os.path.join(self.service_tools_folder, "models_starter.bat")
 
-    def update_desota_uninstaller(self, user_conf, services_conf, models_list, target_bat_path):
+    # Bat to Uninstall Desota Completely
+    def update_desota_uninstaller(self, target_bat_path):
         # 1 - Stop Models
         # 2 - Uninstall Models
         # 3 - Uninstall DeManager
