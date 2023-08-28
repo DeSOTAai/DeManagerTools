@@ -101,8 +101,7 @@ class WinBatManager:
             _res_models.append(_new_service)
         # 2 - Get Admin Previleges 
         _tmp_file_lines = [
-            "@ECHO OFF\n",
-            "cls\n"
+            "@ECHO OFF\n"
         ]
         _tmp_file_lines += self.get_admin
         
@@ -136,8 +135,7 @@ class WinBatManager:
             _res_models.append(_new_service)
         # 2 - Get Admin Previleges 
         _tmp_file_lines = [
-            "@ECHO OFF\n",
-            "cls\n"
+            "@ECHO OFF\n"
         ]
         _tmp_file_lines += self.get_admin
         # 3 - Iterate thru instalation models
