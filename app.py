@@ -200,7 +200,6 @@ class SGui():
 
     # - Change APP Theme
     def theme_select(self, values):
-        self.root.close()
         self.set_user_theme(values["selectTheme"])
         return "-restart-"
     
@@ -240,11 +239,10 @@ class SGui():
                     wbm.update_models_stopper()
                     break
                 else:
-                    _ml_res = self.main_loop(ignore_event=["selectTheme"], timeout=500)
+                    _ml_res = self.main_loop(ignore_event=[], timeout=500)
                     #TODO : 
                     # if _ml_res == "-close-"
                     # if _ml_res == "-restart-"
-            self.root.close()
             return "-restart-"
 
 
