@@ -1,5 +1,6 @@
 import os
 import json
+import subprocess
 user_path=os.path.expanduser('~')
 desota_root_path=os.path.join(user_path, "Desota")
 config_folder=os.path.join(desota_root_path, "Configs")  # User | Services
@@ -26,12 +27,12 @@ GET_ADMIN = [
     'CD /D "%~dp0"\n'
 ]
 
-class BatManager:
+class WinBatManager:
     def __init__(self) -> None:
         self.system = "win"
         self.get_admin = GET_ADMIN
         self.service_tools_folder = os.path.join(app_path, "Tools", "Services")
-    def create_models_instalation(self, services_conf, models_list, target_bat_path):
+    def create_models_instalation(self, services_conf, models_list, target_bat_path, start_installer=False):
         # 1 - Get Admin Previleges 
         _tmp_file_lines = [
             "@ECHO OFF\n",
@@ -71,6 +72,10 @@ class BatManager:
         with open(target_bat_path, "w") as fw:
             fw.writelines(_tmp_file_lines)
 
+        # 7 - Start Installer
+        if start_installer:
+            subprocess.call([f'{target_bat_path}'])
+
     # Bat to Stop ALL Desota Services
     def update_models_stopper(self, user_conf, services_conf, models_list):
         if not os.path.exists(self.service_tools_folder):
@@ -105,8 +110,8 @@ class BatManager:
         with open(os.path.join(self.service_tools_folder, "models_stopper.bat"), "w") as fw:
             fw.writelines(_tmp_file_lines)
 
-    # Bat to Starter for models that run constantly
-    def update_models_starter(self, user_conf, services_conf, models_list):
+    # Bat to Start models that run constantly
+    def update_models_starter(self, user_conf, services_conf, models_list, start_models=False):
         if not os.path.exists(self.service_tools_folder):
             os.mkdir(self.service_tools_folder)
         # 1 - Compare user_models with new installed models
@@ -144,6 +149,10 @@ class BatManager:
         if _exist_run_constantly_model:
             with open(os.path.join(self.service_tools_folder, "models_starter.bat"), "w") as fw:
                 fw.writelines(_tmp_file_lines)
+
+        # 5 - Start Models
+        if start_models:
+            subprocess.call([f'{os.path.join(self.service_tools_folder, "models_starter.bat")}'])
 
     def update_desota_uninstaller(self, user_conf, services_conf, models_list, target_bat_path):
         # 1 - Stop Models
