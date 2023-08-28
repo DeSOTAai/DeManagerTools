@@ -25,9 +25,7 @@ out_bat_folder=os.path.join(app_path, "executables", "Windows")
 import yaml
 from yaml.loader import SafeLoader
 config_folder=os.path.join(desota_root_path, "Configs")  # User | Services
-# Open the file and load the file
-with open(os.path.join(config_folder, "services.config.yaml")) as f:
-    SERVICES_CONF = yaml.load(f, Loader=SafeLoader)
+
 
 # Construct APP with PySimpleGui
 class SGui():
@@ -39,8 +37,9 @@ class SGui():
         self.tab_keys= [ '-TAB1-', '-TAB2-', '-TAB3-']
         self.themes = sg.ListOfLookAndFeelValues()
         self.current_theme = self.get_user_theme()
-
-        self.services_config = SERVICES_CONF
+        
+        with open(os.path.join(config_folder, "services.config.yaml")) as f:
+            self.services_config = yaml.load(f, Loader=SafeLoader)
         with open(os.path.join(config_folder, "user.config.yaml")) as f:
             self.user_config = yaml.load(f, Loader=SafeLoader)
         self.system = self.user_config['system']
