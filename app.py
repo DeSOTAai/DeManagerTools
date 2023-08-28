@@ -305,6 +305,7 @@ def main():
         if _sgui_res == "-close-":
             break
         elif _sgui_res == "-restart-":
+            sgui.root.close()
             sgui = SGui()
         
 if __name__ == "__main__":
