@@ -118,7 +118,8 @@ class SGui():
         self.current_tab = current_tab
 
     def get_service_status(self, get_status_path):
-        _target_status_res = os.path.join(app_path, "tmp_status_serv.txt")
+        _curr_epoch = time.time()
+        _target_status_res = os.path.join(app_path, f"tmp_status_serv{_curr_epoch}.txt")
         subprocess.call([get_status_path, _target_status_res])
         while not os.path.isfile(_target_status_res):
             time.sleep(.3)
