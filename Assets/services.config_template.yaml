@@ -163,7 +163,6 @@ manager_params: {
         installer_args: ,
         uninstaller_args: ,
         version:
-        
     },
     service_config: https://raw.githubusercontent.com/DeSOTAai/DeManagerTools/main/Assets/services.config_template.yaml,
     description: DeSOTA Manager and Tools for Clients Servers,

@@ -2,3 +2,4 @@ PySimpleGUI
 psgtray
 pyinstaller
 pyyaml
+requests
