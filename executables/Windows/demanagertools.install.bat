@@ -24,8 +24,8 @@ set miniconda64=https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x8
 set miniconda32=https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86.exe
 
 :: - DeSOTA Services Manager Files
-set stop_all_services=%UserProfile%\Desota\Configs\Services\models_stopper.bat
-set start_req_services=%UserProfile%\Desota\Configs\Services\models_starter.bat
+set stop_all_services=%desota_root_path%\Configs\Services\models_stopper.bat
+set start_req_services=%desota_root_path%\Configs\Services\models_starter.bat
 
 :: - .bat ANSI Colored CLI
 set header=
@@ -57,15 +57,17 @@ ECHO %header%Welcome to DeSOTA - Task Manager Installer!%ansi_end%
 ECHO %info_h1%Step 1/9 - Check Re-Instalation%ansi_end%
 
 :: Re-instalation Check
+IF EXIST %stop_all_services% (
+    ECHO Stopping All Desota Services...
+    call %stop_all_services%
+)
+
 IF NOT EXIST %manager_path_install% (
     ECHO %info_h2%New install%ansi_end%
     GOTO endofreinstall
 )
 ECHO %info_h2%Re-Instalation required%ansi_end%
-IF EXIST %stop_all_services% (
-    ECHO Stopping All Desota Services...
-    start /B /WAIT %stop_all_services%
-)
+
 ECHO Start Uninstalation...
 call %manager_uninstall% /Q
 IF EXIST %manager_path_install% (
@@ -180,7 +182,7 @@ IF NOT EXIST %desota_root_path%\Configs\user.config.yaml (
 ECHO %info_h1%Step 9/9 - End of Installer%ansi_end%
 IF EXIST %start_req_services% (
     ECHO %info_h2%Starting DeSOTA Services that run constantly...%ansi_end%
-    start /B /WAIT %start_req_services%
+    call %start_req_services%
 )
 ECHO %sucess%Starting DeSOTA - Manager Tools%ansi_end%
 ECHO %info_h1%You can close this window!%ansi_end%
