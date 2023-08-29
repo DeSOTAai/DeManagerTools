@@ -5,6 +5,7 @@ import PySimpleGUI as sg
 from Tools.services_manager import WinBatManager
 import subprocess
 import time
+import requests
 
 DEBUG = True
 DESOTA_TOOLS_SERVICES = {    # Desc -> Service: Checkbox Disabled = REQUIRED
@@ -16,7 +17,8 @@ EVENT_TO_METHOD = {
     "selectTheme": "theme_select",
     "startInstall": "install_models",
     "tool_table": "tool_table_row_selected",
-    "model_table": "model_table_row_selected"
+    "model_table": "model_table_row_selected",
+    "upgradeServConf": "update_service_config"
 }
 
 user_path=os.path.expanduser('~')
@@ -373,6 +375,19 @@ class SGui():
             self.models_click = True
         return "-ignore-"
 
+    # - Upgrade Services Configs
+    def update_service_config(self, values):
+        _serv_upgrade_url = self.services_config["manager_params"]["service_config"]
+        _req_res = requests.get(_serv_upgrade_url)
+        if _req_res.status_code != 200:
+            return "-ignore-"
+        else:
+            _target_file = os.path.join(config_folder, "services.config.yaml")
+            with open(_target_file, "w") as fw:
+                fw.write(_req_res.text)
+            return "-restart-"
+
+
     # Get Class Method From Event and Run Method
     def main_loop(self, ignore_event=[], timeout=None):
         try:
@@ -387,10 +402,12 @@ class SGui():
             return "-close-"
         elif _event == sg.TIMEOUT_KEY:
             return "-timeout-"
+        
         # TAB CHANGED
         elif isinstance(_event, int):
             self.current_tab = _values[_event]
             return "-ignore-"
+        
         #access all the values and if selected add them to a string
         print(f" [ DEBUG ] -> event = {_event}")
         print(f" [ DEBUG ] -> values = {_values}")
@@ -398,7 +415,7 @@ class SGui():
         try:    # Inspired in https://stackoverflow.com/questions/7936572/python-call-a-function-from-string-name
             # Analize Event
             if " " not in _event:
-                _res_event = _event
+                _res_event = ''.join((ce for ce in _event if not ce.isdigit()))
                 _res_values = _values
             else:
                 _res_event = _event.split(" ")[0]

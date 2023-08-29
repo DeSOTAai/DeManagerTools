@@ -165,6 +165,7 @@ manager_params: {
         version:
         
     },
+    service_config: https://raw.githubusercontent.com/DeSOTAai/DeManagerTools/main/Assets/services.config_template.yaml,
     description: DeSOTA Manager and Tools for Clients Servers,
     source_code: https://github.com/desotaai/demanagertools,
 }
