@@ -85,6 +85,7 @@ services_params: {
         },
         description: Library for Question Answering on Large Datasets with BERT,
         source_code: https://github.com/victordibia/neuralqa,
+        model_ui: http://127.0.0.1:8888/,
         run_constantly: false,
         submodel: false
     },
@@ -129,6 +130,7 @@ services_params: {
         },
         description: WebScrape with assistance of AI Models,
         source_code: https://github.com/franciscomvargas/descraper,
+        model_ui: http://127.0.0.1:8880/,
         run_constantly: true,
         submodel: false
     },

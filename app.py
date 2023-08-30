@@ -18,7 +18,9 @@ EVENT_TO_METHOD = {
     "startInstall": "install_models",
     "tool_table": "tool_table_row_selected",
     "model_table": "model_table_row_selected",
-    "upgradeServConf": "update_service_config"
+    "upgradeServConf": "update_service_config",
+    "openSource": "open_models_sourcecode",
+    "openModelUI": "open_models_ui"
 }
 
 user_path=os.path.expanduser('~')
@@ -205,7 +207,12 @@ class SGui():
                     key='model_table'
                 )])
                 # _dashboard_layout.append([sg.Graph()]) #TODO
-                _dashboard_layout.append([sg.Button('Take a Peek', button_color=("Green","White"), key="openSource", pad=(5, (20,0))), sg.Button('Source Code', button_color=("Blue","White"), key="openSource", pad=(5, (20,0))), sg.Button('Uninstall', button_color=("Red","White"), key="startUninstall", pad=(5, (20,0)))])
+
+            _dashboard_layout.append([
+                sg.Button('Take a Peek', button_color=("Green","White"), key="openModelUI", pad=(5, (20,0))), 
+                sg.Button('Source Code', button_color=("Blue","White"), key="openSource", pad=(5, (20,0))), 
+                sg.Button('Uninstall', button_color=("Red","White"), key="startUninstall", pad=(5, (20,0)))]
+                )
 
             return _dashboard_layout
     
@@ -387,6 +394,85 @@ class SGui():
                 fw.write(_req_res.text)
             return "-restart-"
 
+    # - Open Models Source Codes
+    def open_models_sourcecode(self, values):
+        _user_tools = []
+        _user_models = []
+        for _user_service, _v in self.user_config['models'].items():
+            if _user_service in self.tools_services:
+                _user_tools.append(_user_service)
+            else:
+                _user_models.append(_user_service)
+
+        for _row in values["tool_table"]:
+            _model_name = _user_tools[_row]
+            _model_source_code = self.services_config["services_params"][_model_name]["source_code"]
+            webbrowser.open(_model_source_code)
+
+        for _row in values["model_table"]:
+            _model_name = _user_models[_row]
+            _model_source_code = self.services_config["services_params"][_model_name]["source_code"]
+            webbrowser.open(_model_source_code)
+
+        return "-done-"
+        
+    # - Open Models UI
+    def open_models_ui(self, values):
+        _user_tools = []
+        _user_models = []
+        for _user_service, _v in self.user_config['models'].items():
+            if _user_service in self.tools_services:
+                _user_tools.append(_user_service)
+            else:
+                _user_models.append(_user_service)
+
+        for _row in values["tool_table"]:
+            _model_name = _user_tools[_row]
+            if "model_ui" in self.services_config["services_params"][_model_name]:
+                _model_ui_url = self.services_config["services_params"][_model_name]["model_ui"]
+                if self.services_config["services_params"]["run_constantly"]:
+                    
+                    webbrowser.open(_model_ui_url)
+                else:
+                    #Start Service
+                    _model_serv_params = self.services_config["services_params"][_model_name][self.system]
+                    _model_services_path = os.path.join(
+                        user_path, 
+                        _model_serv_params["service_path"],
+                        _model_serv_params["starter"]
+                    )
+                    subprocess.call([_model_services_path])
+                    p1 = subprocess.Popen([_model_services_path])
+                    exit_code1 = p1.wait()
+                    print(f' [ INFO ] -> Start MODEL exit code -> {exit_code1}')
+                    webbrowser.open(_model_ui_url)
+
+        for _row in values["model_table"]:
+            _model_name = _user_models[_row]
+            print(f" MODEL NAME --> {_model_name}")
+            print(f" MODEL HAS UI --> {'model_ui' in self.services_config['services_params'][_model_name]}")
+            if "model_ui" in self.services_config["services_params"][_model_name]:
+                _model_ui_url = self.services_config["services_params"][_model_name]["model_ui"]
+                print(f" MODEL UI URL --> {_model_ui_url}")
+                print(f" MODEL RUN CONSTANTLY --> {self.services_config['services_params'][_model_name]['run_constantly']}")
+                if self.services_config["services_params"][_model_name]["run_constantly"]:
+
+                    webbrowser.open(_model_ui_url)
+                else:
+                    #Start Service
+                    _model_serv_params = self.services_config["services_params"][_model_name][self.system]
+                    _model_services_path = os.path.join(
+                        user_path, 
+                        _model_serv_params["service_path"],
+                        _model_serv_params["starter"]
+                    )
+                    subprocess.call([_model_services_path])
+                    p1 = subprocess.Popen([_model_services_path])
+                    exit_code1 = p1.wait()
+                    print(f' [ INFO ] -> Start MODEL exit code -> {exit_code1}')
+                    webbrowser.open(_model_ui_url)
+
+        
 
     # Get Class Method From Event and Run Method
     def main_loop(self, ignore_event=[], timeout=None):
@@ -425,6 +511,13 @@ class SGui():
             if _res_event in ignore_event:
                 return "-ignore-"
             
+            print(f" METHOD -->> {self.event_to_method[_res_event]}")
+            try: 
+                _res_method = getattr(self, self.event_to_method[_res_event])
+                print(_res_method(_res_values))
+            except Exception as e:
+                print(e)
+            return "-ignore-"
             _method_str = self.event_to_method[_res_event]
 
             _res_method = getattr(self, _method_str)
