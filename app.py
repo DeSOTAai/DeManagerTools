@@ -573,6 +573,7 @@ class SGui():
         wbm = WinBatManager(self.user_config, self.services_config, _models_2_uninstall)
         uninstall_waiter_path = os.path.join(app_path, "tmp_uninstaller_status.txt")
         wbm.create_services_unintalation(start_uninstall=True, waiter={uninstall_waiter_path: 1})
+        
         while True:
             if os.path.isfile(uninstall_waiter_path):
                 with open(uninstall_waiter_path, "r") as fr:
@@ -589,12 +590,15 @@ class SGui():
 
         for _model in _models_2_uninstall:
             self.user_config["models"].pop(_model)
+
         if not self.user_config["models"]:
             self.user_config["models"] = None
+
         with open(os.path.join(config_folder, "user.config.yaml"), 'w',) as fw:
             yaml.dump(self.user_config,fw,sort_keys=False)
 
-        end_wbm = WinBatManager(self.user_config, self.services_config, list(self.user_config["models"].keys()))
+
+        end_wbm = WinBatManager(self.user_config, self.services_config, [] if not self.user_config["models"] else list(self.user_config["models"].keys()))
         end_wbm.update_models_starter(from_uninstall=True)
         end_wbm.update_models_stopper(from_uninstall=True)
 
