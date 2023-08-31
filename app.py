@@ -1,7 +1,7 @@
 import os
 import webbrowser
 import json
-import PySimpleGUI as sg
+import PySimpleGUI as psg
 from Tools.services_manager import WinBatManager
 import subprocess
 import time
@@ -20,7 +20,8 @@ EVENT_TO_METHOD = {
     "model_table": "model_table_row_selected",
     "upgradeServConf": "update_service_config",
     "openSource": "open_models_sourcecode",
-    "openModelUI": "open_models_ui"
+    "openModelUI": "open_models_ui",
+    "startUninstall":"uninstall_services"
 }
 
 user_path=os.path.expanduser('~')
@@ -42,8 +43,9 @@ class SGui():
         self.tools_services = DESOTA_TOOLS_SERVICES
         self.event_to_method = EVENT_TO_METHOD
         self.tab_keys= [ '-TAB1-', '-TAB2-', '-TAB3-']
-        self.themes = sg.ListOfLookAndFeelValues()
+        self.themes = psg.ListOfLookAndFeelValues()
         self.current_theme = self.get_user_theme()
+        self.icon = os.path.join(app_path, "Assets", "icon.ico")
         
         with open(os.path.join(config_folder, "services.config.yaml")) as f:
             self.services_config = yaml.load(f, Loader=SafeLoader)
@@ -52,7 +54,7 @@ class SGui():
         self.system = self.user_config['system']
         
         #define pysimplegui theme
-        sg.theme(self.current_theme)
+        psg.theme(self.current_theme)
         
         #define open tab
         self.set_current_tab(self.tab_keys[0])
@@ -60,7 +62,7 @@ class SGui():
         #define pysimplegui fonts
         self.header_f = ("Helvetica", 12, "bold")
         self.title_f = ("Helvetica", 10, "bold")
-        self.default_f = sg.DEFAULT_FONT
+        self.default_f = psg.DEFAULT_FONT
 
         #define tab layouts
         self.tab1 = self.construct_monitor_models_tab()
@@ -69,12 +71,12 @@ class SGui():
         
         #define Tab Group Layout
         self.tabgrp = [
-            [sg.Text('Theme: ', font=self.default_f, pad=((410,0),(0,0))), sg.Combo(values=self.themes, default_value=self.current_theme, enable_events=True, key='selectTheme')],
-            [sg.TabGroup(
+            [psg.Text('Theme: ', font=self.default_f, pad=((410,0),(0,0))), psg.Combo(values=self.themes, default_value=self.current_theme, enable_events=True, key='selectTheme')],
+            [psg.TabGroup(
                 [[
-                    sg.Tab('Models Dashboard', self.tab1, title_color='Red',border_width =10, background_color=None,tooltip='', element_justification= 'left', key=self.tab_keys[0]),
-                    sg.Tab('Models Instalation', self.tab2,title_color='Blue',background_color=None, key=self.tab_keys[1]),
-                    sg.Tab('DeSOTA API Key', self.tab3,title_color='Black',background_color=None,tooltip='', key=self.tab_keys[2])
+                    psg.Tab('Models Dashboard', self.tab1, title_color='Red',border_width =10, background_color=None,tooltip='', element_justification= 'left', key=self.tab_keys[0]),
+                    psg.Tab('Models Instalation', self.tab2,title_color='Blue',background_color=None, key=self.tab_keys[1]),
+                    psg.Tab('DeSOTA API Key', self.tab3,title_color='Black',background_color=None,tooltip='', key=self.tab_keys[2])
                 ]],
                 enable_events=True,
                 tab_location='topleft',
@@ -92,8 +94,12 @@ class SGui():
         self.models_selected = []
         self.models_click = True
 
+        #define user services
+        self.user_tools = []
+        self.user_models = []
+
         #Define Window
-        self.root = sg.Window("Desota - Manager Tools",self.tabgrp, icon=os.path.join(app_path, "Assets", "icon.ico"))
+        self.root = psg.Window("Desota - Manager Tools",self.tabgrp, icon=self.icon)
 
     ## Util Funks
     def get_user_theme(self):
@@ -124,14 +130,29 @@ class SGui():
     def get_service_status(self, get_status_path):
         _curr_epoch = time.time()
         _target_status_res = os.path.join(app_path, f"tmp_status_serv{_curr_epoch}.txt")
-        subprocess.call([get_status_path, _target_status_res])
+
+        _sproc = subprocess.Popen([get_status_path, _target_status_res])
+
+
+        _sproc_exit_code = _sproc.wait()
         while not os.path.isfile(_target_status_res):
             time.sleep(.3)
             continue
+
+
         with open(_target_status_res, "r") as fr:
             _status = fr.read().replace("\n", "").strip()
         os.remove(_target_status_res)
         return _status
+
+    def set_installed_services(self):
+        self.user_tools = []
+        self.user_models = []
+        for _user_service, _v in self.user_config['models'].items():
+            if _user_service in self.tools_services:
+                self.user_tools.append(_user_service)
+            else:
+                self.user_models.append(_user_service)
 
     # TAB Constructors
     # TAB 1 - Models Dashboard
@@ -139,8 +160,8 @@ class SGui():
         # No Models Available
         if not self.user_config['models']:
             return [
-                [sg.Text('No Model Installed', font=self.header_f)],
-                [sg.Button('Install Models', key=f"TABMOVE {self.tab_keys[1]}")]
+                [psg.Text('No Model Installed', font=self.header_f)],
+                [psg.Button('Install Models', key=f"TABMOVE {self.tab_keys[1]}")]
             ]
         # Models Available
         else: # Inspited in https://stackoverflow.com/a/65778327 
@@ -152,15 +173,15 @@ class SGui():
                 if _k not in self.tools_services:
                     continue
                 if not _tools_data:
-                    _dashboard_layout.append([sg.Text('Installed Desota Tools', font=self.header_f)])
+                    _dashboard_layout.append([psg.Text('Installed Desota Tools', font=self.header_f)])
                 _tool_params = self.services_config["services_params"][_k]
-                _tool_desc = _tool_params["description"]
+                _tool_desc = _tool_params["short_description"]
                 _tool_status_path = os.path.join(user_path, _tool_params[self.system]["service_path"], _tool_params[self.system]["status"])
                 _tool_status = self.get_service_status(_tool_status_path).lower()
                 _tool_source = _tool_params["source_code"]
                 _tools_data.append([_k, _tool_status, _tool_desc])
             if _tools_data:
-                _dashboard_layout.append([sg.Table(
+                _dashboard_layout.append([psg.Table(
                     values=_tools_data, 
                     headings=_tool_table_header, 
                     max_col_width=40,
@@ -169,13 +190,13 @@ class SGui():
                     justification='center',
                     num_rows=len(_tools_data),
                     alternating_row_color='#000020',
-                    select_mode=sg.TABLE_SELECT_MODE_EXTENDED,
+                    select_mode=psg.TABLE_SELECT_MODE_EXTENDED,
                     enable_events=True,
                     row_height=25,
                     hide_vertical_scroll=True,
                     key='tool_table'
                 )])
-                # _dashboard_layout.append([sg.Graph()]) #TODO
+                # _dashboard_layout.append([psg.Graph()]) #TODO
                 
             _models_data = []
             _model_table_header = ["AI Model", "Service Status", "Description"]
@@ -183,15 +204,15 @@ class SGui():
                 if _k in self.tools_services:
                     continue
                 if not _models_data:
-                    _dashboard_layout.append([sg.Text('Installed AI Models', font=self.header_f, pad=(0, (20,0)) if _tools_data else (0, (0,0)))])
+                    _dashboard_layout.append([psg.Text('Installed AI Models', font=self.header_f, pad=(0, (20,0)) if _tools_data else (0, (0,0)))])
                 _tool_params = self.services_config["services_params"][_k]
-                _tool_desc = _tool_params["description"]
+                _tool_desc = _tool_params["short_description"]
                 _tool_status_path = os.path.join(user_path, _tool_params[self.system]["service_path"], _tool_params[self.system]["status"])
                 _tool_status = self.get_service_status(_tool_status_path).lower()
                 _tool_source = _tool_params["source_code"]
                 _models_data.append([_k, _tool_status, _tool_desc])
             if _models_data:
-                _dashboard_layout.append([sg.Table(
+                _dashboard_layout.append([psg.Table(
                     values=_models_data, 
                     headings=_model_table_header, 
                     max_col_width=40,
@@ -200,18 +221,19 @@ class SGui():
                     justification='center',
                     num_rows=len(_models_data),
                     alternating_row_color='#000020',
-                    select_mode=sg.TABLE_SELECT_MODE_EXTENDED,
+                    select_mode=psg.TABLE_SELECT_MODE_EXTENDED,
                     enable_events=True,
                     row_height=25,
                     hide_vertical_scroll=True,
                     key='model_table'
                 )])
-                # _dashboard_layout.append([sg.Graph()]) #TODO
+                # _dashboard_layout.append([psg.Graph()]) #TODO
 
             _dashboard_layout.append([
-                sg.Button('Take a Peek', button_color=("Green","White"), key="openModelUI", pad=(5, (20,0))), 
-                sg.Button('Source Code', button_color=("Blue","White"), key="openSource", pad=(5, (20,0))), 
-                sg.Button('Uninstall', button_color=("Red","White"), key="startUninstall", pad=(5, (20,0)))]
+                psg.Button('Control Service', button_color=("Blue","White"), key="setService", visible=False,pad=(5, (20,0))),
+                psg.Button('Take a Peek', button_color=("Green","White"), key="openModelUI", pad=(5, (20,0))), 
+                psg.Button('Source Code', button_color=("Blue","White"), key="openSource", pad=(5, (20,0))), 
+                psg.Button('Uninstall', button_color=("Red","White"), key="startUninstall", pad=(5, (20,0)))]
                 )
 
             return _dashboard_layout
@@ -225,11 +247,11 @@ class SGui():
             if not self.user_config['models'] or _desota_serv not in self.user_config['models']:
                 if not _req_services_header:
                     _req_services_header = True
-                    _install_layout.append([sg.Text('Desota Tools Services', font=self.title_f)])
-                _install_layout.append([sg.Checkbox(_desota_serv, default=_cb_disabled, disabled=_cb_disabled, key=f"SERVICE {_desota_serv}")])
+                    _install_layout.append([psg.Text('Desota Tools Services', font=self.title_f)])
+                _install_layout.append([psg.Checkbox(_desota_serv, default=_cb_disabled, disabled=_cb_disabled, key=f"SERVICE {_desota_serv}")])
 
         if _req_services_header:
-            _install_layout.append([sg.HorizontalSeparator()])
+            _install_layout.append([psg.HorizontalSeparator()])
 
         # TODO: Upgrade Models
         _upgrade_models_header = False
@@ -240,11 +262,11 @@ class SGui():
             if self.user_config['models'] and _k in self.user_config['models'] and self.user_config['models'][_k] != _latest_model_version:
                 if not _upgrade_models_header:
                     _upgrade_models_header = True
-                    _install_layout.append([sg.Text('Upgradable Services Availabe', font=self.title_f)])
-                _install_layout.append([sg.Checkbox(_k, key=f"SERVICE {_k}")])
+                    _install_layout.append([psg.Text('Upgradable Services Availabe', font=self.title_f)])
+                _install_layout.append([psg.Checkbox(_k, key=f"SERVICE {_k}")])
 
         if _upgrade_models_header:
-            _install_layout.append([sg.HorizontalSeparator()])
+            _install_layout.append([psg.HorizontalSeparator()])
         
         # Available Uninstalled Models
         _available_models_header = False
@@ -253,19 +275,19 @@ class SGui():
                 continue
             if not _available_models_header:
                 _available_models_header = True
-                _install_layout.append([sg.Text('Available Models', font=self.title_f)])
-            _install_layout.append([sg.Checkbox(_k, key=f"SERVICE {_k}")])
+                _install_layout.append([psg.Text('Available Models', font=self.title_f)])
+            _install_layout.append([psg.Checkbox(_k, key=f"SERVICE {_k}")])
 
         if not _install_layout:
             return [
-                [sg.Text('You are an absolute LEGEND!', font=self.header_f)],
-                [sg.Text('You have currently installed all DeSOTA Models!', font=self.default_f)],
-                [sg.Button('Check 4 Upgrades', key="upgradeServConf")]
+                [psg.Text('You are an absolute LEGEND!', font=self.header_f)],
+                [psg.Text('You have currently installed all DeSOTA Models!', font=self.default_f)],
+                [psg.Button('Check 4 Upgrades', key="upgradeServConf")]
             ]
         return [
-            [sg.Text('Select the services to be installed', font=self.header_f), sg.Button('Check 4 Upgrades', key="upgradeServConf0")],
-            [sg.Column(_install_layout, size=(600,300), scrollable=True)],
-            [sg.Button('Start Instalation', key="startInstall"), sg.ProgressBar(100, orientation='h', expand_x=True, size=(20, 20),  key='installPBAR')]
+            [psg.Text('Select the services to be installed', font=self.header_f), psg.Button('Check 4 Upgrades', key="upgradeServConf0")],
+            [psg.Column(_install_layout, size=(600,300), scrollable=True)],
+            [psg.Button('Start Instalation', key="startInstall"), psg.ProgressBar(100, orientation='h', expand_x=True, size=(20, 20),  key='installPBAR')]
         ]
 
     # TAB 3 - DeSOTA API Key
@@ -273,8 +295,8 @@ class SGui():
         # No Models Installed
         if not self.user_config['models']:
             return [
-                [sg.Text('No Model Installed', font=self.header_f)],
-                [sg.Button('Install Models', key=f"TABMOVE0 {self.tab_keys[1]}")]
+                [psg.Text('No Model Installed', font=self.header_f)],
+                [psg.Button('Install Models', key=f"TABMOVE0 {self.tab_keys[1]}")]
             ]
         # TODO . Discuss w/ Kris what about if people have models installed but need key authenticato for new models...
         # Models Installed
@@ -282,12 +304,12 @@ class SGui():
             _strip_models = [ m.strip() for m, v in self.user_config['models'].items() if m not in self.tools_services]
             _str_models = ",".join(_strip_models)
             return [
-                [sg.Text('Create your API Key', font=self.header_f)],  # Title
-                [sg.Text('1. Log In DeSOTA ', font=self.default_f), sg.Text("here", tooltip='', enable_events=True, font=self.default_f, text_color="blue", key=f'WEBREQUEST http://129.152.27.36/index.php')],    # Log In DeSOTA
-                [sg.Text('2. Confirm you are logged in DeOTA API ', font=self.default_f), sg.Text("here", tooltip='', enable_events=True, font=self.default_f, text_color="blue", key=f'WEBREQUEST http://129.152.27.36/assistant/api.php')],    # Confirm Log In DeSOTA
-                [sg.Text('3. Get your DeSOTA API Key ', font=self.default_f), sg.Text("here", tooltip='', enable_events=True, font=self.default_f, text_color="blue", key=f'WEBREQUEST http://129.152.27.36/assistant/api.php?models_list={_str_models}')],    # SET API Key
-                [sg.Text('4. Insert DeSOTA API Key', font=self.default_f),sg.Input('',key='inpKey')],
-                [sg.Button('Set API Key', key="setAPIkey")]
+                [psg.Text('Create your API Key', font=self.header_f)],  # Title
+                [psg.Text('1. Log In DeSOTA ', font=self.default_f), psg.Text("here", tooltip='', enable_events=True, font=self.default_f, text_color="blue", key=f'WEBREQUEST http://129.152.27.36/index.php')],    # Log In DeSOTA
+                [psg.Text('2. Confirm you are logged in DeOTA API ', font=self.default_f), psg.Text("here", tooltip='', enable_events=True, font=self.default_f, text_color="blue", key=f'WEBREQUEST http://129.152.27.36/assistant/api.php')],    # Confirm Log In DeSOTA
+                [psg.Text('3. Get your DeSOTA API Key ', font=self.default_f), psg.Text("here", tooltip='', enable_events=True, font=self.default_f, text_color="blue", key=f'WEBREQUEST http://129.152.27.36/assistant/api.php?models_list={_str_models}')],    # SET API Key
+                [psg.Text('4. Insert DeSOTA API Key', font=self.default_f),psg.Input('',key='inpKey')],
+                [psg.Button('Set API Key', key="setAPIkey")]
             ]
 
 
@@ -299,7 +321,7 @@ class SGui():
 
     # - Open URL in Browser
     def open_url(self, url):
-        webbrowser.open(url)
+        webbrowser.open(url, autoraise=False)
         return "-done-"
 
     # - Change APP Theme
@@ -345,7 +367,7 @@ class SGui():
                     wbm.update_models_stopper()
                     break
                 else:
-                    _ml_res = self.main_loop(ignore_event=[], timeout=500)
+                    _ml_res = self.main_loop(ignore_event=[], timeout=50)
                     #TODO : 
                     # if _ml_res == "-close-"
                     # if _ml_res == "-restart-"
@@ -382,13 +404,26 @@ class SGui():
             self.models_click = True
         return "-ignore-"
 
-    # - Upgrade Services Configs
+    # - Upgrade from GITHUB Services Configs
     def update_service_config(self, values):
         _serv_upgrade_url = self.services_config["manager_params"]["service_config"]
         _req_res = requests.get(_serv_upgrade_url)
         if _req_res.status_code != 200:
             return "-ignore-"
         else:
+            #Create TMP Services Config File
+            _tmp_serv_conf_path = os.path.join(config_folder, "tmp_services_config.yaml")
+            with open(_tmp_serv_conf_path, "w") as fw:
+                fw.write(_req_res.text)
+            with open(_tmp_serv_conf_path) as f:
+                _temp_services_config = yaml.load(f, Loader=SafeLoader)
+
+            os.remove(_tmp_serv_conf_path)
+
+            if self.services_config["services_params"] == _temp_services_config["services_params"] and self.services_config["manager_params"] == _temp_services_config["manager_params"]:
+                psg.popup("You are currently up to date!\n", title="", icon=self.icon)
+                return "-ignore-"
+            
             _target_file = os.path.join(config_folder, "services.config.yaml")
             with open(_target_file, "w") as fw:
                 fw.write(_req_res.text)
@@ -396,83 +431,175 @@ class SGui():
 
     # - Open Models Source Codes
     def open_models_sourcecode(self, values):
-        _user_tools = []
-        _user_models = []
-        for _user_service, _v in self.user_config['models'].items():
-            if _user_service in self.tools_services:
-                _user_tools.append(_user_service)
-            else:
-                _user_models.append(_user_service)
+        self.set_installed_services()
+        
+        if "tool_table" in values:
+            for _row in values["tool_table"]:
+                _model_name = self.user_tools[_row]
+                _model_source_code = self.services_config["services_params"][_model_name]["source_code"]
+                webbrowser.open(_model_source_code, autoraise=False)
 
-        for _row in values["tool_table"]:
-            _model_name = _user_tools[_row]
-            _model_source_code = self.services_config["services_params"][_model_name]["source_code"]
-            webbrowser.open(_model_source_code)
-
-        for _row in values["model_table"]:
-            _model_name = _user_models[_row]
-            _model_source_code = self.services_config["services_params"][_model_name]["source_code"]
-            webbrowser.open(_model_source_code)
+        if "model_table" in values:
+            for _row in values["model_table"]:
+                _model_name = self.user_models[_row]
+                _model_source_code = self.services_config["services_params"][_model_name]["source_code"]
+                webbrowser.open(_model_source_code, autoraise=False)
 
         return "-done-"
         
     # - Open Models UI
-    def open_models_ui(self, values):
-        _user_tools = []
-        _user_models = []
-        for _user_service, _v in self.user_config['models'].items():
-            if _user_service in self.tools_services:
-                _user_tools.append(_user_service)
+    def model_ui_handle(self, model_name):
+        _res = None
+        if "model_ui" in self.services_config["services_params"][model_name]:
+            _model_params = self.services_config["services_params"][model_name]
+            _model_ui_url = _model_params["model_ui"]
+            _model_req_hs = _model_params["handshake_req"]
+            _model_res_hs = _model_params["handshake_res"]
+
+            if self.services_config["services_params"][model_name]["run_constantly"]:
+                try:
+                    _hs_req = requests.get(_model_req_hs)
+                    if _hs_req.status_code == 200 and _hs_req.json() == _model_res_hs:
+                        webbrowser.open(_model_ui_url, autoraise=False)
+                        return _res
+                except:
+                    pass
+
+                #Start Run Constantly Services
+                _start_run_constantly_serv_path = os.path.join(config_folder, "Services", "models_starter.bat")
+                _sproc = subprocess.Popen([_start_run_constantly_serv_path])
+                _sproc_exit_code = _sproc.wait()
+                _res = "-restart-"
+                while True:
+                    try:
+                        _hs_req = requests.get(_model_req_hs)
+                        if _hs_req.status_code == 200 and _hs_req.json() == _model_res_hs:
+                            webbrowser.open(_model_ui_url)
+                            return _res
+                    except:
+                        pass
+                    _ml_res = self.main_loop(ignore_event=[], timeout=50)
+                    #TODO : 
+                    # if _ml_res == "-close-"
+                    # if _ml_res == "-restart-"
+                    # if _ml_res == "-ignore-"
+            
             else:
-                _user_models.append(_user_service)
+                try:
+                    _hs_req = requests.get(_model_req_hs)
+                    if _hs_req.status_code == 200 and _hs_req.json() == _model_res_hs:
+                        webbrowser.open(_model_ui_url, autoraise=False)
+                        return _res
+                except:
+                    pass
+            
+                #Start Service
+                _str_serv = psg.popup_yes_no(
+                    f"The Model '{model_name}' is hosted on a service that starts and stops mannualy!\n\nDo you want to Start the Service?\n(Don't forget to stop the service after closing the model UI)",  
+                    title="", 
+                    icon=self.icon
+                )
+                if _str_serv != "Yes":
+                    return _res
+                _res = "-restart-"
+                _model_serv_params = self.services_config["services_params"][model_name][self.system]
+                _model_services_path = os.path.join(
+                    user_path, 
+                    _model_serv_params["service_path"],
+                    _model_serv_params["starter"]
+                )
+                _sproc = subprocess.Popen([_model_services_path])
+                _sproc_exit_code = _sproc.wait()
+                print(f' [ INFO ] -> Start MODEL exit code -> {_sproc_exit_code}')
+                while True:
+                    try:
+                        _hs_req = requests.get(_model_req_hs)
+                        if _hs_req.status_code == 200 and _hs_req.json() == _model_res_hs:
+                            webbrowser.open(_model_ui_url, autoraise=False)
+                            return _res
+                    except:
+                        pass
+                    _ml_res = self.main_loop(ignore_event=[], timeout=50)
+                    #TODO : 
+                    # if _ml_res == "-close-"
+                    # if _ml_res == "-restart-"
+                    # if _ml_res == "-ignore-"
+        return _res
+    def open_models_ui(self, values):
+        self.set_installed_services()
 
-        for _row in values["tool_table"]:
-            _model_name = _user_tools[_row]
-            if "model_ui" in self.services_config["services_params"][_model_name]:
-                _model_ui_url = self.services_config["services_params"][_model_name]["model_ui"]
-                if self.services_config["services_params"]["run_constantly"]:
-                    
-                    webbrowser.open(_model_ui_url)
-                else:
-                    #Start Service
-                    _model_serv_params = self.services_config["services_params"][_model_name][self.system]
-                    _model_services_path = os.path.join(
-                        user_path, 
-                        _model_serv_params["service_path"],
-                        _model_serv_params["starter"]
-                    )
-                    subprocess.call([_model_services_path])
-                    p1 = subprocess.Popen([_model_services_path])
-                    exit_code1 = p1.wait()
-                    print(f' [ INFO ] -> Start MODEL exit code -> {exit_code1}')
-                    webbrowser.open(_model_ui_url)
+        _model_ui_ret = "-done-"
+        if "tool_table" in values:
+            for _row in values["tool_table"]:
+                _model_name = self.user_tools[_row]
+                _ui_res = self.model_ui_handle(_model_name)
+                if _ui_res:
+                    _model_ui_ret = _ui_res 
 
-        for _row in values["model_table"]:
-            _model_name = _user_models[_row]
-            print(f" MODEL NAME --> {_model_name}")
-            print(f" MODEL HAS UI --> {'model_ui' in self.services_config['services_params'][_model_name]}")
-            if "model_ui" in self.services_config["services_params"][_model_name]:
-                _model_ui_url = self.services_config["services_params"][_model_name]["model_ui"]
-                print(f" MODEL UI URL --> {_model_ui_url}")
-                print(f" MODEL RUN CONSTANTLY --> {self.services_config['services_params'][_model_name]['run_constantly']}")
-                if self.services_config["services_params"][_model_name]["run_constantly"]:
+        if "model_table" in values:
+            for _row in values["model_table"]:
+                _model_name = self.user_models[_row]
+                _ui_res = self.model_ui_handle(_model_name)
+                if _ui_res:
+                    _model_ui_ret = _ui_res 
 
-                    webbrowser.open(_model_ui_url)
-                else:
-                    #Start Service
-                    _model_serv_params = self.services_config["services_params"][_model_name][self.system]
-                    _model_services_path = os.path.join(
-                        user_path, 
-                        _model_serv_params["service_path"],
-                        _model_serv_params["starter"]
-                    )
-                    subprocess.call([_model_services_path])
-                    p1 = subprocess.Popen([_model_services_path])
-                    exit_code1 = p1.wait()
-                    print(f' [ INFO ] -> Start MODEL exit code -> {exit_code1}')
-                    webbrowser.open(_model_ui_url)
+        return _model_ui_ret
 
+    # - Uninstall Service
+    def uninstall_services(self, values):
+        self.set_installed_services()
+        _models_2_uninstall = []
+        if "tool_table" in values:
+            for _row in values["tool_table"]:
+                _models_2_uninstall.append(self.user_tools[_row])
+
+
+        if "model_table" in values:
+            for _row in values["model_table"]:
+                _models_2_uninstall.append(self.user_models[_row])
+
+        if not _models_2_uninstall:
+            return "-ignore-"
         
+        _str_serv = psg.popup_yes_no(
+            f"Confirm you want to erase the following models: {json.dumps(_models_2_uninstall, indent=4)}",  
+            title="", 
+            icon=self.icon,
+            image=os.path.join(app_path, "Assets", "ru-sure-about-that.gif")
+        )
+        if _str_serv != "Yes":
+            return "-ignore-"
+        
+        wbm = WinBatManager(self.user_config, self.services_config, _models_2_uninstall)
+        uninstall_waiter_path = os.path.join(app_path, "tmp_uninstaller_status.txt")
+        wbm.create_services_unintalation(start_uninstall=True, waiter={uninstall_waiter_path: 1})
+        while True:
+            if os.path.isfile(uninstall_waiter_path):
+                with open(uninstall_waiter_path, "r") as fr:
+                    _waiter_res = fr.read()
+                if _waiter_res == "1":
+                    break
+            _ml_res = self.main_loop(ignore_event=[], timeout=50)
+            #TODO : 
+            # if _ml_res == "-close-"
+            # if _ml_res == "-restart-"
+            # if _ml_res == "-ignore-"
+            
+        del wbm
+
+        for _model in _models_2_uninstall:
+            self.user_config["models"].pop(_model)
+        if not self.user_config["models"]:
+            self.user_config["models"] = None
+        with open(os.path.join(config_folder, "user.config.yaml"), 'w',) as fw:
+            yaml.dump(self.user_config,fw,sort_keys=False)
+
+        end_wbm = WinBatManager(self.user_config, self.services_config, list(self.user_config["models"].keys()))
+        end_wbm.update_models_starter(from_uninstall=True)
+        end_wbm.update_models_stopper(from_uninstall=True)
+
+        return "-restart-"
+
 
     # Get Class Method From Event and Run Method
     def main_loop(self, ignore_event=[], timeout=None):
@@ -480,13 +607,13 @@ class SGui():
             #Read  values entered by user
             _event, _values = self.root.read(timeout=timeout)
         except:
-            _event = sg.WIN_CLOSED
+            _event = psg.WIN_CLOSED
 
-        if _event == sg.WIN_CLOSED:
+        if _event == psg.WIN_CLOSED:
             self.set_app_status(0)
             self.root.close()    
             return "-close-"
-        elif _event == sg.TIMEOUT_KEY:
+        elif _event == psg.TIMEOUT_KEY:
             return "-timeout-"
         
         # TAB CHANGED
@@ -511,17 +638,11 @@ class SGui():
             if _res_event in ignore_event:
                 return "-ignore-"
             
-            print(f" METHOD -->> {self.event_to_method[_res_event]}")
-            try: 
-                _res_method = getattr(self, self.event_to_method[_res_event])
-                print(_res_method(_res_values))
-            except Exception as e:
-                print(e)
-            return "-ignore-"
-            _method_str = self.event_to_method[_res_event]
 
+            _method_str = self.event_to_method[_res_event]
             _res_method = getattr(self, _method_str)
             return _res_method(_res_values)
+
 
         except AttributeError:
             raise NotImplementedError("Class `{}` does not implement `{}`".format(self.__class__.__name__, _method_str))
@@ -546,6 +667,7 @@ def main():
             _tab_selected = True
             sgui.main_loop(timeout=10)
             sgui.move_2_tab(_mem_open_tab)
+        print('*'*80)
         _sgui_res = sgui.main_loop()
         print(f" [ DEBUG ] -> main_loop res = {_sgui_res}")
         if _sgui_res == "-ignore-":
