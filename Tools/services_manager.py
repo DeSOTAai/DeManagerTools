@@ -24,17 +24,17 @@ GET_ADMIN = [
     "exit /B\n",
     ":gotAdmin\n",
     'pushd "%CD%"\n'
-    'CD /D "%~dp0"\n'
 ]
 
 class WinBatManager:
     def __init__(self, user_conf, services_conf, models_list) -> None:
         self.system = "win"
-        self.get_admin = GET_ADMIN
+        
         self.service_tools_folder = os.path.join(config_folder, "Services")
         self.services_conf = services_conf
         self.models_list = models_list
         self.user_conf = user_conf
+        self.get_admin = GET_ADMIN + [f'CD /D "{desota_root_path}"']
 
     # Temp Bat to Install New Desota Services
     def create_models_instalation(self, target_bat_path, start_install=False):
@@ -86,7 +86,8 @@ class WinBatManager:
             subprocess.call([f'{target_bat_path}'])
 
     # Bat to Stop ALL Desota Services
-    def update_models_stopper(self):
+    def update_models_stopper(self, from_uninstall=False):
+        _models_stopper_path = os.path.join(self.service_tools_folder, "models_stopper.bat")
         if not os.path.exists(self.service_tools_folder):
             os.mkdir(self.service_tools_folder)
         # 1 - Compare user_models with new installed models
@@ -94,6 +95,10 @@ class WinBatManager:
             _res_models = [ m for m,v in self.user_conf["models"].items()]
         else:
             _res_models = []
+
+        if from_uninstall and not _res_models:
+            if os.path.isfile(_models_stopper_path):
+                os.remove(_models_stopper_path)
         
         for _new_service in self.models_list:
             if _new_service in _res_models:
@@ -116,11 +121,12 @@ class WinBatManager:
         _tmp_file_lines.append("exit\n")
             
         # 4 - Create Stopper Bat
-        with open(os.path.join(self.service_tools_folder, "models_stopper.bat"), "w") as fw:
+        with open(_models_stopper_path, "w") as fw:
             fw.writelines(_tmp_file_lines)
 
     # Bat to Start models that run constantly
-    def update_models_starter(self):
+    def update_models_starter(self, from_uninstall=False):
+        _models_starter_path = os.path.join(self.service_tools_folder, "models_starter.bat")
         if not os.path.exists(self.service_tools_folder):
             os.mkdir(self.service_tools_folder)
         # 1 - Compare user_models with new installed models
@@ -128,6 +134,9 @@ class WinBatManager:
             _res_models = [ m for m,v in self.user_conf["models"].items()]
         else:
             _res_models = []
+        if from_uninstall and not _res_models:
+            if os.path.isfile(_models_starter_path):
+                os.remove(_models_starter_path)
         
         for _new_service in self.models_list:
             if _new_service in _res_models:
@@ -155,11 +164,52 @@ class WinBatManager:
             
         # 4 - Create Starter Bat
         if _exist_run_constantly_model:
-            with open(os.path.join(self.service_tools_folder, "models_starter.bat"), "w") as fw:
+            with open(_models_starter_path, "w") as fw:
                 fw.writelines(_tmp_file_lines)
 
         # Return Start Models .BAT PATH 
-        return os.path.join(self.service_tools_folder, "models_starter.bat")
+        return _models_starter_path
+
+    # Bat to Uninstall Services
+    def create_services_unintalation(self, start_uninstall=False, waiter={os.path.join(app_path, "tmp_uninstaller_status.txt"): 1}, ):
+        _target_bat_path = os.path.join(app_path, "tmp_services_uninstaller.bat")
+
+        # 1 - Get Admin Previleges 
+        _tmp_file_lines = [
+            "@ECHO OFF\n",
+            "cls\n"
+        ]
+        _tmp_file_lines += self.get_admin
+
+        # 2 - Stop All Services
+        _gen_serv_stoper = os.path.join(self.service_tools_folder, "models_stopper.bat")
+        if os.path.isfile(_gen_serv_stoper):
+            _tmp_file_lines.append(f"start /B /WAIT {_gen_serv_stoper}\n")
+
+        # 3 - Iterate thru Uninstalation services
+        for model in self.models_list:
+            # 3.1 - Append services Uninstallers
+            _model_service = self.services_conf["services_params"][model][self.system]
+            _model_uninstall_name = _model_service["uninstaller"]
+            _model_uninstall_path = os.path.join(user_path, _model_service["service_path"], _model_uninstall_name)
+            
+            _model_uninstall_cmd = [_model_uninstall_path]
+            if "uninstaller_args" in _model_service and _model_service["uninstaller_args"]:
+                _model_uninstall_cmd += _model_service["uninstaller_args"]
+                
+            _tmp_file_lines.append(f'call {" ".join(_model_uninstall_cmd)}\n')
+            
+        for tmp_un, msg in waiter.items():
+            _tmp_file_lines.append(f'ECHO {msg} >{tmp_un}\n')
+        # 4 - Delete Bat at end of instalation - retrieved from https://stackoverflow.com/a/20333152
+        _tmp_file_lines.append(f'(goto) 2>nul & del "{_target_bat_path}"\n')
+
+        with open(_target_bat_path, "w") as fw:
+            fw.writelines(_tmp_file_lines)
+            
+        # 5 - Start Uninstaller
+        if start_uninstall:
+            subprocess.call([str(_target_bat_path)])
 
     # Bat to Uninstall Desota Completely
     def update_desota_uninstaller(self, target_bat_path):
