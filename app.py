@@ -571,7 +571,7 @@ class SGui():
             return "-ignore-"
         
         wbm = WinBatManager(self.user_config, self.services_config, _models_2_uninstall)
-        uninstall_waiter_path = os.path.join(app_path, "tmp_uninstaller_status.txt")
+        uninstall_waiter_path = os.path.join(app_path, f"tmp_uninstaller_status{time.time()}.txt")
         wbm.create_services_unintalation(start_uninstall=True, waiter={uninstall_waiter_path: 1})
         
         while True:
@@ -585,9 +585,10 @@ class SGui():
             # if _ml_res == "-close-"
             # if _ml_res == "-restart-"
             # if _ml_res == "-ignore-"
-            
-        del wbm
 
+        del wbm
+        os.remove(uninstall_waiter_path)
+        
         for _model in _models_2_uninstall:
             self.user_config["models"].pop(_model)
 
