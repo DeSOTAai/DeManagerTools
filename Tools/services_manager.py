@@ -42,7 +42,7 @@ class WinBatManager:
 
         self.models_list = models_list
         self.user_conf = user_conf
-        self.get_admin = GET_ADMIN + [f'CD /D "{desota_root_path}"']
+        self.get_admin = GET_ADMIN + [f'CD /D "{desota_root_path}"\n']
 
     # Temp Bat to Install New Desota Services
     def create_models_instalation(self, target_bat_path, start_install=False):
