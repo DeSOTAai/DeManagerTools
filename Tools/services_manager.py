@@ -47,10 +47,7 @@ class WinBatManager:
     # Temp Bat to Install New Desota Services
     def create_models_instalation(self, target_bat_path, start_install=False):
         # 1 - Get Admin Previleges 
-        _tmp_file_lines = [
-            "@ECHO OFF\n",
-            "cls\n"
-        ]
+        _tmp_file_lines = ["@ECHO OFF\n"]
         _tmp_file_lines += self.get_admin
         
         # 2 - Create install_progrss.txt
