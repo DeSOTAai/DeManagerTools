@@ -598,9 +598,9 @@ class SGui():
             yaml.dump(self.user_config,fw,sort_keys=False)
 
 
-        end_wbm = WinBatManager(self.user_config, self.services_config, [] if not self.user_config["models"] else list(self.user_config["models"].keys()))
-        end_wbm.update_models_starter(from_uninstall=True)
-        end_wbm.update_models_stopper(from_uninstall=True)
+        end_wbm = WinBatManager(self.user_config, self.services_config, self.user_config["models"])
+        end_wbm.update_models_starter()
+        end_wbm.update_models_stopper()
 
         return "-restart-"
 

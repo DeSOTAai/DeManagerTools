@@ -32,6 +32,14 @@ class WinBatManager:
         
         self.service_tools_folder = os.path.join(config_folder, "Services")
         self.services_conf = services_conf
+        
+        if not models_list:
+            self.models_list = None
+        elif isinstance(models_list, list):
+            self.models_list = models_list
+        if isinstance(models_list, dict):
+            self.models_list = list(models_list.keys())
+
         self.models_list = models_list
         self.user_conf = user_conf
         self.get_admin = GET_ADMIN + [f'CD /D "{desota_root_path}"']
@@ -86,8 +94,14 @@ class WinBatManager:
             subprocess.call([f'{target_bat_path}'])
 
     # Bat to Stop ALL Desota Services
-    def update_models_stopper(self, from_uninstall=False):
+    def update_models_stopper(self):
         _models_stopper_path = os.path.join(self.service_tools_folder, "models_stopper.bat")
+        
+        if not self.models_list:
+            if os.path.isfile(_models_stopper_path):
+                os.remove(_models_stopper_path)
+            return None
+
         if not os.path.exists(self.service_tools_folder):
             os.mkdir(self.service_tools_folder)
         # 1 - Compare user_models with new installed models
@@ -96,14 +110,11 @@ class WinBatManager:
         else:
             _res_models = []
 
-        if from_uninstall and not _res_models:
-            if os.path.isfile(_models_stopper_path):
-                os.remove(_models_stopper_path)
-        
         for _new_service in self.models_list:
             if _new_service in _res_models:
                 continue
             _res_models.append(_new_service)
+
         # 2 - Get Admin Previleges 
         _tmp_file_lines = [
             "@ECHO OFF\n"
@@ -125,8 +136,14 @@ class WinBatManager:
             fw.writelines(_tmp_file_lines)
 
     # Bat to Start models that run constantly
-    def update_models_starter(self, from_uninstall=False):
+    def update_models_starter(self):
         _models_starter_path = os.path.join(self.service_tools_folder, "models_starter.bat")
+        
+        if not self.models_list:
+            if os.path.isfile(_models_starter_path):
+                os.remove(_models_starter_path)
+            return None
+
         if not os.path.exists(self.service_tools_folder):
             os.mkdir(self.service_tools_folder)
         # 1 - Compare user_models with new installed models
@@ -134,9 +151,6 @@ class WinBatManager:
             _res_models = [ m for m,v in self.user_conf["models"].items()]
         else:
             _res_models = []
-        if from_uninstall and not _res_models:
-            if os.path.isfile(_models_starter_path):
-                os.remove(_models_starter_path)
         
         for _new_service in self.models_list:
             if _new_service in _res_models:
