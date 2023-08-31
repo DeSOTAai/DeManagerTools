@@ -577,7 +577,7 @@ class SGui():
         while True:
             if os.path.isfile(uninstall_waiter_path):
                 with open(uninstall_waiter_path, "r") as fr:
-                    _waiter_res = fr.read()
+                    _waiter_res = fr.read().replace("\n", "").strip()
                 if _waiter_res == "1":
                     break
             _ml_res = self.main_loop(ignore_event=[], timeout=50)
