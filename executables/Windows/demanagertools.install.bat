@@ -150,7 +150,7 @@ call %UserProfile%\Desota\Portables\miniconda3\condabin\conda create --prefix ./
 call %UserProfile%\Desota\Portables\miniconda3\condabin\conda activate ./env  > NUL 2>NUL
 
 :: Install required Libraries
-ECHO %info_h1%Step 6/9 - Install Project Libraries%ansi_end%
+ECHO %info_h1%Step 6/9 - Install Project Packages%ansi_end%
 call pip install -r requirements.txt  > NUL 2>NUL
 
 :: Create App EXE

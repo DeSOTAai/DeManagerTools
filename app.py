@@ -148,11 +148,12 @@ class SGui():
     def set_installed_services(self):
         self.user_tools = []
         self.user_models = []
-        for _user_service, _v in self.user_config['models'].items():
-            if _user_service in self.tools_services:
-                self.user_tools.append(_user_service)
-            else:
-                self.user_models.append(_user_service)
+        if self.user_config['models']:
+            for _user_service, _v in self.user_config['models'].items():
+                if _user_service in self.tools_services:
+                    self.user_tools.append(_user_service)
+                else:
+                    self.user_models.append(_user_service)
 
     # TAB Constructors
     # TAB 1 - Models Dashboard
@@ -339,10 +340,15 @@ class SGui():
         if not _models_2_install:
             return "-ignore-"
         _ammount_models = len(_models_2_install)
+        
         if self.system == "win":
             wbm = WinBatManager(self.user_config, self.services_config, _models_2_install)
             _installer_tmp_path = os.path.join(out_bat_folder, "desota_tmp_installer.bat")
-            wbm.create_models_instalation(_installer_tmp_path, start_install=True)
+            _starter_wait_path = os.path.join(app_path, f"starter_finished{time.time()}.txt")
+            _waiter_msg = "done"
+            wbm.create_models_instalation(_installer_tmp_path, start_install=True, 
+                waiter={_starter_wait_path: _waiter_msg}
+            )
             self.root['startInstall'].update(disabled=True)
             self.root['installPBAR'].update(current_count=0)
             _install_prog_file = os.path.join(app_path, "install_progress.txt")
@@ -362,10 +368,14 @@ class SGui():
                 _curr_prog = (_curr_prog_file/_ammount_models) * 100
                 self.root['installPBAR'].update(current_count=_curr_prog)
                 
-                if _curr_prog == 100:
-                    os.remove(_install_prog_file)
-                    wbm.update_models_stopper()
-                    break
+                if _curr_prog == 100 and os.path.isfile(_starter_wait_path):
+                    with open(_starter_wait_path, "r") as fr:
+                        _waiter_res = fr.read().replace("\n", "").strip()
+                    if _waiter_res == _waiter_msg:
+                        os.remove(_install_prog_file)
+                        os.remove(_starter_wait_path)
+                        wbm.update_models_stopper()
+                        break
                 else:
                     _ml_res = self.main_loop(ignore_event=[], timeout=50)
                     #TODO : 
@@ -570,6 +580,19 @@ class SGui():
         if _str_serv != "Yes":
             return "-ignore-"
         
+        _after_un_models = self.user_config["models"].copy()
+        for _model in _models_2_uninstall:
+            _after_un_models.pop(_model)
+
+        if not _after_un_models:
+            _after_un_models = None
+
+        wbm = WinBatManager(self.user_config, self.services_config, _after_un_models)
+        _starter_wait_path = os.path.join(app_path, f"starter_finished{time.time()}.txt")
+        _starter_msg = "done"
+        _upd_models_starter_res = wbm.update_models_starter(waiter={_starter_wait_path: _starter_msg})
+        del wbm
+        
         wbm = WinBatManager(self.user_config, self.services_config, _models_2_uninstall)
         uninstall_waiter_path = os.path.join(app_path, f"tmp_uninstaller_status{time.time()}.txt")
         wbm.create_services_unintalation(start_uninstall=True, waiter={uninstall_waiter_path: 1})
@@ -579,7 +602,14 @@ class SGui():
                 with open(uninstall_waiter_path, "r") as fr:
                     _waiter_res = fr.read().replace("\n", "").strip()
                 if _waiter_res == "1":
-                    break
+                    if _upd_models_starter_res:
+                        if os.path.isfile(_starter_wait_path):
+                            with open(_starter_wait_path, "r") as fr:
+                                _starter_res = fr.read().replace("\n", "").strip()
+                            if _starter_res == _starter_msg:
+                                break
+                    else:
+                        break
             _ml_res = self.main_loop(ignore_event=[], timeout=50)
             #TODO : 
             # if _ml_res == "-close-"
@@ -588,21 +618,25 @@ class SGui():
 
         del wbm
         os.remove(uninstall_waiter_path)
+        if _upd_models_starter_res:
+            os.remove(_starter_wait_path)
         
-        for _model in _models_2_uninstall:
-            self.user_config["models"].pop(_model)
-
-        if not self.user_config["models"]:
-            self.user_config["models"] = None
+        if _after_un_models:
+            self.user_config["models"] = _after_un_models.copy()
+        else:
+            self.user_config["models"] = _after_un_models
 
         with open(os.path.join(config_folder, "user.config.yaml"), 'w',) as fw:
             yaml.dump(self.user_config,fw,sort_keys=False)
+            
+        wbm = WinBatManager(self.user_config, self.services_config, self.user_config["models"])
+        wbm.update_models_stopper()
+        # REMOVE WAITER ECHOS
+        if _upd_models_starter_res:
+            wbm.update_models_starter()
+        del wbm
 
-
-        end_wbm = WinBatManager(self.user_config, self.services_config, self.user_config["models"])
-        end_wbm.update_models_starter()
-        end_wbm.update_models_stopper()
-
+        self.set_installed_services()
         return "-restart-"
 
 
