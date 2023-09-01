@@ -45,7 +45,11 @@ class WinBatManager:
         self.get_admin = GET_ADMIN + [f'CD /D "{desota_root_path}"\n']
 
     # Temp Bat to Install New Desota Services
-    def create_models_instalation(self, target_bat_path, start_install=False):
+    def create_models_instalation(self, target_bat_path, start_install=False, waiter={}):
+        '''
+        :param waiter: Specify a File To write a message when starter as finished - Only Implemented if start_install=True
+        :type waiter: dict{ str(waiter_file_path): str(starter_completed_message) }
+        '''
         # 1 - Get Admin Previleges 
         _tmp_file_lines = ["@ECHO OFF\n"]
         _tmp_file_lines += self.get_admin
@@ -76,8 +80,13 @@ class WinBatManager:
             _tmp_file_lines.append(f'ECHO {count+1} > {app_path}\install_progress.txt\n')
 
         # 5 - Create Start Run Constantly Services
-        _models_start_path = self.update_models_starter()
-        _tmp_file_lines.append(f"start /B /WAIT {_models_start_path}\n")
+        if start_install and waiter:
+            _models_start_path = self.update_models_starter(from_installer=True, waiter=waiter)
+        else:
+            _models_start_path = self.update_models_starter(from_installer=True)
+            
+        if _models_start_path:
+            _tmp_file_lines.append(f"start /B /WAIT {_models_start_path}\n")
         
         # 5 - Delete Bat at end of instalation - retrieved from https://stackoverflow.com/a/20333152
         _tmp_file_lines.append('(goto) 2>nul & del "%~f0"\n')
@@ -133,9 +142,18 @@ class WinBatManager:
             fw.writelines(_tmp_file_lines)
 
     # Bat to Start models that run constantly
-    def update_models_starter(self):
+    def update_models_starter(self, from_installer=False, waiter={}):
+        '''
+        :param waiter: Specify a File To write a message when starter as finished
+        :type waiter: dict{ str(waiter_file_path): str(starter_completed_message) }
+        '''
         _models_starter_path = os.path.join(self.service_tools_folder, "models_starter.bat")
-        
+
+        if from_installer and self.user_conf["models"] and len(list(self.user_conf["models"].keys())) > 0:
+            for _model, _v in self.user_conf["models"].items():
+                if _model not in self.models_list:
+                    self.models_list.append(_model)
+                    
         if not self.models_list:
             if os.path.isfile(_models_starter_path):
                 os.remove(_models_starter_path)
@@ -143,16 +161,6 @@ class WinBatManager:
 
         if not os.path.exists(self.service_tools_folder):
             os.mkdir(self.service_tools_folder)
-        # 1 - Compare user_models with new installed models
-        if self.user_conf["models"]:
-            _res_models = [ m for m,v in self.user_conf["models"].items()]
-        else:
-            _res_models = []
-        
-        for _new_service in self.models_list:
-            if _new_service in _res_models:
-                continue
-            _res_models.append(_new_service)
         # 2 - Get Admin Previleges 
         _tmp_file_lines = [
             "@ECHO OFF\n"
@@ -160,17 +168,28 @@ class WinBatManager:
         _tmp_file_lines += self.get_admin
         # 3 - Iterate thru instalation models
         _exist_run_constantly_model = False
-        for _model in _res_models:
+        for _model in self.models_list:
             _model_param_run_constantly = self.services_conf["services_params"][_model]["run_constantly"]
             if not _model_param_run_constantly:
                 continue
+
             if not _exist_run_constantly_model:
                 _exist_run_constantly_model = True
+
             _model_param_path = self.services_conf["services_params"][_model][self.system]["service_path"]
             _model_param_start = self.services_conf["services_params"][_model][self.system]["starter"]
-
             _model_start_path = os.path.join(user_path, _model_param_path, _model_param_start)
+            
             _tmp_file_lines.append(f"start /B /WAIT {_model_start_path}\n")
+
+        if not _exist_run_constantly_model:
+            if os.path.isfile(_models_starter_path):
+                os.remove(_models_starter_path)
+            return None
+
+        if waiter:
+            for _target_wait_path, _wait_msg in waiter.items():
+                _tmp_file_lines.append(f"ECHO {_wait_msg} >{_target_wait_path}\n")
         _tmp_file_lines.append("exit\n")
             
         # 4 - Create Starter Bat
@@ -182,13 +201,12 @@ class WinBatManager:
         return _models_starter_path
 
     # Bat to Uninstall Services
-    def create_services_unintalation(self, start_uninstall=False, waiter={os.path.join(app_path, "tmp_uninstaller_status.txt"): 1}, ):
+    def create_services_unintalation(self, start_uninstall=False, waiter={os.path.join(app_path, "tmp_uninstaller_status.txt"): 1}):
         _target_bat_path = os.path.join(app_path, "tmp_services_uninstaller.bat")
-
+        _models_starter_path = os.path.join(self.service_tools_folder, "models_starter.bat")
         # 1 - Get Admin Previleges 
         _tmp_file_lines = [
-            "@ECHO OFF\n",
-            "cls\n"
+            "@ECHO OFF\n"
         ]
         _tmp_file_lines += self.get_admin
 
@@ -212,13 +230,18 @@ class WinBatManager:
             
         for tmp_un, msg in waiter.items():
             _tmp_file_lines.append(f'ECHO {msg} >{tmp_un}\n')
-        # 4 - Delete Bat at end of instalation - retrieved from https://stackoverflow.com/a/20333152
+        
+        # 4 - Start Run Constantly Models
+        if os.path.isfile(_models_starter_path):
+            _tmp_file_lines.append(f"start /B /WAIT {_models_starter_path}\n")
+        
+        # 5 - Delete Bat at end of instalation - retrieved from https://stackoverflow.com/a/20333152
         _tmp_file_lines.append(f'(goto) 2>nul & del "{_target_bat_path}"\n')
-
+            
         with open(_target_bat_path, "w") as fw:
             fw.writelines(_tmp_file_lines)
             
-        # 5 - Start Uninstaller
+        # 6 - Start Uninstaller
         if start_uninstall:
             subprocess.call([str(_target_bat_path)])
 
