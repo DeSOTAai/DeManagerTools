@@ -481,7 +481,7 @@ class SGui():
     # - Upgrade from GITHUB Services Configs
     def update_service_config(self, values):
         try:
-            _curr_serv_conf, _last_serv_conf = self.get_services_config(ret_latest_serv_conf=True)
+            _curr_serv_conf, _last_serv_conf = self.get_services_config()
             self.services_config, self.latest_services_config = _curr_serv_conf, _last_serv_conf
             
             if self.services_config["services_params"] == _last_serv_conf["services_params"] and self.services_config["manager_params"] == _last_serv_conf["manager_params"]:
