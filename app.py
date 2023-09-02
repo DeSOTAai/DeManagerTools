@@ -41,7 +41,7 @@ LATEST_SERV_CONF_RAW = "https://raw.githubusercontent.com/DeSOTAai/DeRunner/main
 
 # Construct APP with PySimpleGui
 class SGui():
-    def __init__(self) -> None:
+    def __init__(self, ignore_update=False) -> None:
         #Class Vars
         self.debug = DEBUG
         self.tools_services = DESOTA_TOOLS_SERVICES
@@ -52,14 +52,9 @@ class SGui():
         self.icon = os.path.join(app_path, "Assets", "icon.ico")
         self.started_manual_services_file = os.path.join(config_folder, "Services", "manual_services_started.txt")
         
-        _services_config_path = os.path.join(config_folder, "services.config.yaml")
-        if os.path.isfile( _services_config_path ):
-            with open( _services_config_path ) as f:
-                self.services_config = yaml.load(f, Loader=SafeLoader)
-        else:
-            self.services_config, self.latest_services_config = self.get_services_config()
-            if not self.services_config:
-                raise EnvironmentError()
+        self.services_config, self.latest_services_config = self.get_services_config(ignore_update=ignore_update)
+        if not self.services_config:
+            raise EnvironmentError()
 
         with open(os.path.join(config_folder, "user.config.yaml")) as f:
             self.user_config = yaml.load(f, Loader=SafeLoader)
@@ -72,8 +67,9 @@ class SGui():
         self.set_current_tab(self.tab_keys[0])
 
         #define pysimplegui fonts
-        self.header_f = ("Helvetica", 12, "bold")
-        self.title_f = ("Helvetica", 10, "bold")
+        self.header_f = ("Helvetica", 14, "bold")
+        self.title_f = ("Helvetica", 12, "bold")
+        self.bold_f = ("Helvetica", 10, "bold")
         self.default_f = psg.DEFAULT_FONT
 
         #define tab layouts
@@ -83,7 +79,7 @@ class SGui():
         
         #define Tab Group Layout
         self.tabgrp = [
-            [psg.Text('Theme: ', font=self.default_f, pad=((410,0),(0,0))), psg.Combo(values=self.themes, default_value=self.current_theme, enable_events=True, key='selectTheme')],
+            [psg.Text('Theme: ', font=self.default_f, pad=((626,0),(0,0))), psg.Combo(values=self.themes, size=(20), default_value=self.current_theme, enable_events=True, key='selectTheme')],
             [psg.TabGroup(
                 [[
                     psg.Tab('Models Dashboard', self.tab1, title_color='Red',border_width =10, background_color=None,tooltip='', element_justification= 'left', key=self.tab_keys[0]),
@@ -173,18 +169,22 @@ class SGui():
                 return fr.readlines()
         return []
 
-    def get_services_config(self):
+    def get_services_config(self, ignore_update=False):
+        _serv_conf_path = os.path.join(config_folder, "services.config.yaml")
+        _latest_serv_conf_path = os.path.join(config_folder, "latest_services_config.yaml") 
+        if ignore_update:
+            with open( _serv_conf_path ) as f_curr:
+                with open(_latest_serv_conf_path) as f_last:
+                    return yaml.load(f_curr, Loader=SafeLoader), yaml.load(f_last, Loader=SafeLoader)
         _req_res = requests.get(LATEST_SERV_CONF_RAW)
         if _req_res.status_code != 200:
             return None
         else:
             # Create Latest Services Config File
-            _latest_serv_conf_path = os.path.join(config_folder, "latest_services_config.yaml")
             with open(_latest_serv_conf_path, "w") as fw:
                 fw.write(_req_res.text)
 
             # Create Services Config File if don't exist
-            _serv_conf_path = os.path.join(config_folder, "services.config.yaml")
             if not os.path.isfile(_serv_conf_path):
                 with open(_latest_serv_conf_path, "w") as fw:
                     fw.write(_req_res.text)
@@ -277,20 +277,19 @@ class SGui():
             # Handle Stop Manual Services
             _started_malual_services = self.get_started_manual_services()
             if _started_malual_services:
-                _visible = True
                 _disabled = False
             else:
-                _visible = False
                 _disabled = True
 
-            _dashboard_layout.append([
-                psg.Button('Take a Peek', button_color=("Green","White"), key="openModelUI", pad=(5, (20,0))), 
-                psg.Button('Source Code', button_color=("Blue","White"), key="openSource", pad=(5, (20,0))), 
-                psg.Button('Uninstall', button_color=("Red","White"), key="startUninstall", pad=(5, (20,0))),
-                psg.Button('Stop Manual Services', button_color=("Orange","White"), key="stopManualServices", visible=_visible, disabled=_disabled,pad=(5, (20,0)))
-            ])
-
-            return _dashboard_layout
+            return [
+                [psg.Column(_dashboard_layout, size=(800,435), scrollable=True)],
+                [
+                    psg.Button('Take a Peek', button_color=("Green","White"), key="openModelUI", pad=(5, 0)), 
+                    psg.Button('Source Code', button_color=("Blue","White"), key="openSource", pad=(5, 0)),
+                    psg.Button('Stop Manual Services', button_color=("Orange","White"), key="stopManualServices", disabled=_disabled,pad=(5, 0)),
+                    psg.Button('Uninstall', button_color=("Red","White"), key="startUninstall", pad=(5, 0))
+                ]
+            ]
     
     # TAB 2 - Models Instalation
     def construct_install_tab(self):
@@ -302,7 +301,13 @@ class SGui():
                 if not _req_services_header:
                     _req_services_header = True
                     _install_layout.append([psg.Text('Desota Tools Services', font=self.title_f)])
-                _install_layout.append([psg.Checkbox(_desota_serv, default=_cb_disabled, disabled=_cb_disabled, key=f"SERVICE {_desota_serv}")])
+                _install_layout.append([
+                    psg.Checkbox(_desota_serv, default=_cb_disabled, disabled=_cb_disabled, key=f"SERVICE {_desota_serv}"),
+                    psg.Button('Source Code', button_color=("Blue","White"), key=f'WEBREQUEST {self.services_config["services_params"][_desota_serv]["source_code"]}', pad=(5, (0,0)))
+                ])
+                _install_layout.append([
+                    psg.Text(f'Description:', font=self.bold_f), psg.Text(f'{self.services_config["services_params"][_desota_serv]["short_description"]}', font=self.default_f),
+                ])
 
         if _req_services_header:
             _install_layout.append([psg.HorizontalSeparator()])
@@ -313,11 +318,17 @@ class SGui():
             if _params["submodel"] == True:
                 continue
             _latest_model_version = _params[self.system]['version']
-            if self.user_config['models'] and _serv in self.user_config['models'] and self.user_config['models'][_k] != _latest_model_version:
+            if self.user_config['models'] and _serv in self.user_config['models'] and self.user_config['models'][_serv] != _latest_model_version:
                 if not _upgrade_models_header:
                     _upgrade_models_header = True
                     _install_layout.append([psg.Text('Upgradable Services Availabe', font=self.title_f)])
-                _install_layout.append([psg.Checkbox(_serv, key=f"UPGRADE {_serv}")])
+                _install_layout.append([
+                    psg.Checkbox(_serv, key=f"UPGRADE {_serv}"),
+                    psg.Button('Source Code', button_color=("Blue","White"), key=f'WEBREQUEST {self.services_config["services_params"][_serv]["source_code"]}', pad=(5, (0,0)))
+                ])
+                _install_layout.append([
+                    psg.Text(f'Description:', font=self.bold_f), psg.Text(f'{self.services_config["services_params"][_serv]["short_description"]}', font=self.default_f),
+                ])
 
         if _upgrade_models_header:
             _install_layout.append([psg.HorizontalSeparator()])
@@ -330,7 +341,13 @@ class SGui():
             if not _available_models_header:
                 _available_models_header = True
                 _install_layout.append([psg.Text('Available Models', font=self.title_f)])
-            _install_layout.append([psg.Checkbox(_k, key=f"SERVICE {_k}")])
+            _install_layout.append([
+                psg.Checkbox(_k, key=f"SERVICE {_k}"),
+                psg.Button('Source Code', button_color=("Blue","White"), key=f'WEBREQUEST {self.services_config["services_params"][_k]["source_code"]}', pad=(5, (0,0)))
+            ])
+            _install_layout.append([
+                psg.Text(f'Description:', font=self.bold_f), psg.Text(f'{self.services_config["services_params"][_k]["short_description"]}', font=self.default_f),
+            ])
 
         if not _install_layout:
             return [
@@ -340,7 +357,7 @@ class SGui():
             ]
         return [
             [psg.Text('Select the services to be installed', font=self.header_f), psg.Button('Check 4 Upgrades', key="upgradeServConf0")],
-            [psg.Column(_install_layout, size=(600,300), scrollable=True)],
+            [psg.Column(_install_layout, size=(800,400), scrollable=True)],
             [psg.Button('Start Instalation', key="startInstall"), psg.ProgressBar(100, orientation='h', expand_x=True, size=(20, 20),  key='installPBAR')]
         ]
 
@@ -381,7 +398,10 @@ class SGui():
     # - Change APP Theme
     def theme_select(self, values):
         self.set_user_theme(values["selectTheme"])
-        return "-restart-"
+        _ok_res = psg.popup_ok("The APP will restart in order to change the theme\nPress Ok to proceed", title="", icon=self.icon)
+        if _ok_res:
+            return "-restart-"
+        return "-ignore-"
     
     # - Install Services
     def install_models(self, values):
@@ -484,11 +504,13 @@ class SGui():
             _curr_serv_conf, _last_serv_conf = self.get_services_config()
             self.services_config, self.latest_services_config = _curr_serv_conf, _last_serv_conf
             
-            if self.services_config["services_params"] == _last_serv_conf["services_params"] and self.services_config["manager_params"] == _last_serv_conf["manager_params"]:
+            if self.services_config["services_params"] == self.latest_services_config["services_params"] and self.services_config["manager_params"] == self.latest_services_config["manager_params"]:
                 psg.popup("You are currently up to date!\n", title="", icon=self.icon)
                 return "-ignore-"
-            
-            return "-restart-"
+            _ok_res = psg.popup_ok("The APP will restart with Updated Models\nPress Ok to proceed", title="", icon=self.icon)
+            if _ok_res:
+                return "-restart-"
+            return "-ignore-"
         
         except:
             _manager_issue_url = self.services_config["manager_params"]["report_issue"]
@@ -577,7 +599,7 @@ class SGui():
                 with open(self.started_manual_services_file, "w") as fw:
                     fw.writelines(_started_manual_services)
 
-                self.root['stopManualServices'].update(disabled=False, visible=True)
+                self.root['stopManualServices'].update(disabled=False)
                 #Start Service!
                 _res = "-restart-"
                 _model_serv_params = self.services_config["services_params"][model_name][self.system]
@@ -821,7 +843,7 @@ def main():
         elif _sgui_res == "-restart-":
             _mem_open_tab = sgui.current_tab
             sgui.root.close()
-            sgui = SGui()
+            sgui = SGui(ignore_update=True)
             _tab_selected = False
             continue
 
