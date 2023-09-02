@@ -417,51 +417,74 @@ class SGui():
         if not _models_2_install and not _models_2_upgrade:
             return "-ignore-"
         
+        _instalation_dic = {}
+        if _models_2_install:
+            _instalation_dic["install"] = _models_2_install
+        if _models_2_upgrade:
+            _instalation_dic["upgrade"] = _models_2_upgrade
+        
         _ammount_models = len(_models_2_install) + len(_models_2_upgrade)
         
         if self.system == "win":
-            wbm = WinBatManager(self.user_config, self.services_config, _models_2_install)
-            _installer_tmp_path = os.path.join(out_bat_folder, "desota_tmp_installer.bat")
-            _starter_wait_path = os.path.join(app_path, f"starter_finished{time.time()}.txt")
-            _waiter_msg = "done"
-            wbm.create_models_instalation(_installer_tmp_path, start_install=True, 
-                waiter={_starter_wait_path: _waiter_msg}
-            )
-            self.root['startInstall'].update(disabled=True)
-            self.root['installPBAR'].update(current_count=0)
-            _install_prog_file = os.path.join(app_path, "install_progress.txt")
-            _mem_prog = 0
-            while True:
-                if not os.path.isfile(_install_prog_file):
-                    _curr_prog_file = 0
-                else:
-                    with open(_install_prog_file, "r") as fr:
-                        _curr_prog_file = fr.read().replace("\n", "").strip()
-                if _curr_prog_file == "":
-                    _curr_prog_file = _mem_prog
-                else:
-                    _curr_prog_file = int(_curr_prog_file)
-                if _mem_prog != _curr_prog_file:
-                    _mem_prog = _curr_prog_file
-                _curr_prog = (_curr_prog_file/_ammount_models) * 100
-                self.root['installPBAR'].update(current_count=_curr_prog)
-                
-                if _curr_prog == 100 and os.path.isfile(_starter_wait_path):
-                    with open(_starter_wait_path, "r") as fr:
-                        _waiter_res = fr.read().replace("\n", "").strip()
-                    if _waiter_res == _waiter_msg:
-                        os.remove(_install_prog_file)
-                        os.remove(_starter_wait_path)
-                        wbm.update_models_stopper()
-                        # REMOVE WAITER ECHOS
-                        wbm.update_models_starter(from_installer=True)
-                        break
-                else:
-                    _ml_res = self.main_loop(ignore_event=[], timeout=50)
-                    #TODO : 
-                    # if _ml_res == "-close-"
-                    # if _ml_res == "-restart-"
-                    # if _ml_res == "-ignore-"
+            _instalation_ignored = False
+            _upgrade_ignored = False
+            for _install_type, _models in _instalation_dic.items():
+                if _install_type == "install":
+                    _ok_res = psg.popup_ok(f"You will install the following models: {json.dumps(_models, indent=4)}\nPress Ok to proceed", title="", icon=self.icon)
+                    if not _ok_res:
+                        _instalation_ignored = True
+                    wbm = WinBatManager(self.user_config, self.services_config, _models)
+                elif _install_type == "upgrade":
+                    _ok_res = psg.popup_ok(f"You will update the following models: {json.dumps(_models, indent=4)}\nPress Ok to proceed", title="", icon=self.icon)
+                    if not _ok_res:
+                        _upgrade_ignored = True
+                    wbm = WinBatManager(self.user_config, self.latest_services_config, _models)
+                _installer_tmp_path = os.path.join(out_bat_folder, "desota_tmp_installer.bat")
+                _starter_wait_path = os.path.join(app_path, f"starter_finished{time.time()}.txt")
+                _waiter_msg = "done"
+                wbm.create_models_instalation(_installer_tmp_path, start_install=True, 
+                    waiter={_starter_wait_path: _waiter_msg}
+                )
+                self.root['startInstall'].update(disabled=True)
+                self.root['installPBAR'].update(current_count=0)
+                _install_prog_file = os.path.join(app_path, "install_progress.txt")
+                _mem_prog = 0
+                while True:
+                    if not os.path.isfile(_install_prog_file):
+                        _curr_prog_file = 0
+                    else:
+                        with open(_install_prog_file, "r") as fr:
+                            _curr_prog_file = fr.read().replace("\n", "").strip()
+                    if _curr_prog_file == "":
+                        _curr_prog_file = _mem_prog
+                    else:
+                        _curr_prog_file = int(_curr_prog_file)
+                    if _mem_prog != _curr_prog_file:
+                        _mem_prog = _curr_prog_file
+                    _curr_prog = (_curr_prog_file/_ammount_models) * 100
+                    self.root['installPBAR'].update(current_count=_curr_prog)
+                    
+                    if _curr_prog == 100 and os.path.isfile(_starter_wait_path):
+                        with open(_starter_wait_path, "r") as fr:
+                            _waiter_res = fr.read().replace("\n", "").strip()
+                        if _waiter_res == _waiter_msg:
+                            os.remove(_install_prog_file)
+                            os.remove(_starter_wait_path)
+                            wbm.update_models_stopper()
+                            # REMOVE WAITER ECHOS
+                            wbm.update_models_starter(from_installer=True)
+                            break
+                    else:
+                        _ml_res = self.main_loop(ignore_event=[], timeout=50)
+                        #TODO : 
+                        # if _ml_res == "-close-"
+                        # if _ml_res == "-restart-"
+                        # if _ml_res == "-ignore-"
+            if ("install" in _instalation_dic and _instalation_ignored) and ("upgrade" in _instalation_dic and _upgrade_ignored):
+                return "-ignore-"
+            elif ("install" in _instalation_dic and _instalation_ignored) or ("upgrade" in _instalation_dic and _upgrade_ignored):
+                return "-ignore-"
+            
             if _models_2_upgrade:
                 for up_model in _models_2_upgrade:
                     self.services_config["services_params"][up_model] = self.latest_services_config["services_params"][up_model]
