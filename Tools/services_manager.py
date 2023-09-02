@@ -100,8 +100,15 @@ class WinBatManager:
             subprocess.call([f'{target_bat_path}'])
 
     # Bat to Stop ALL Desota Services
-    def update_models_stopper(self):
-        _models_stopper_path = os.path.join(self.service_tools_folder, "models_stopper.bat")
+    def update_models_stopper(self, only_selected=False, tmp_bat_target = "", waiter={}):
+        '''
+        :param waiter: Specify a File To write a message when stopper as finished
+        :type waiter: dict{ str(waiter_file_path): str(starter_completed_message) }
+        '''
+        if tmp_bat_target:
+            _models_stopper_path = tmp_bat_target
+        else:
+            _models_stopper_path = os.path.join(self.service_tools_folder, "models_stopper.bat")
         
         if not self.models_list:
             if os.path.isfile(_models_stopper_path):
@@ -111,7 +118,7 @@ class WinBatManager:
         if not os.path.exists(self.service_tools_folder):
             os.mkdir(self.service_tools_folder)
         # 1 - Compare user_models with new installed models
-        if self.user_conf["models"]:
+        if self.user_conf["models"] and not only_selected:
             _res_models = [ m for m,v in self.user_conf["models"].items()]
         else:
             _res_models = []
@@ -135,6 +142,9 @@ class WinBatManager:
             _model_stop_path = os.path.join(user_path, _model_param_path, _model_param_stop)
             
             _tmp_file_lines.append(f"start /B /WAIT {_model_stop_path}\n")
+        if waiter:
+            for _target_wait_path, _wait_msg in waiter.items():
+                _tmp_file_lines.append(f"ECHO {_wait_msg} >{_target_wait_path}\n")
         _tmp_file_lines.append("exit\n")
             
         # 4 - Create Stopper Bat
