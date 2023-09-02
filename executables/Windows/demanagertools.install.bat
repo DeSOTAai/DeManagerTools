@@ -169,12 +169,9 @@ cscript CreateShortcut.vbs  > NUL 2>NUL
 del CreateShortcut.vbs  > NUL 2>NUL
 
 :: Create DeSOTA Configs
-ECHO %info_h1%Step 8/9 - Configure DeSOTA %ansi_end%
+ECHO %info_h1%Step 8/9 - DeSOTA Configurations%ansi_end%
 ECHO %info_h2%Creating DeSOTA Configs...%ansi_end%
 mkdir %desota_root_path%\Configs > NUL 2>NUL
-IF NOT EXIST %desota_root_path%\Configs\services.config.yaml (
-    call copy %manager_path_install%\Assets\services.config_template.yaml %desota_root_path%\Configs\services.config.yaml  > NUL 2>NUL
-)
 IF NOT EXIST %desota_root_path%\Configs\user.config.yaml (
     call copy %manager_path_install%\Assets\user.config_template.yaml %desota_root_path%\Configs\user.config.yaml  > NUL 2>NUL
     call %manager_path_install%\env\python %manager_path_install%\Tools\SetUserConfigs.py --key system --value win  > NUL 2>NUL
