@@ -36,7 +36,7 @@ from yaml.loader import SafeLoader
 config_folder=os.path.join(desota_root_path, "Configs")  # User | Services
 
 # Services Configurations - Latest version URL
-LATEST_SERV_CONF_RAW = "https://raw.githubusercontent.com/DeSOTAai/DeRunner/main/Assets/latest_services.congig.yaml"
+LATEST_SERV_CONF_RAW = "https://raw.githubusercontent.com/DeSOTAai/DeRunner/main/Assets/latest_services.config.yaml"
 
 
 # Construct APP with PySimpleGui
