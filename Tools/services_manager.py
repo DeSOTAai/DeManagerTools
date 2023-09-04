@@ -39,62 +39,6 @@ class WinBatManager:
         self.user_conf = user_conf
         self.get_admin = GET_ADMIN + [f'CD /D "{desota_root_path}"\n']
 
-    # Temp Bat to Install New Desota Services
-    def create_models_instalation(self, target_bat_path, install_prog_path, start_install=False):
-        '''
-        :param waiter: Specify a File To write a message when starter as finished - Only Implemented if start_install=True
-        :type waiter: dict{ str(waiter_file_path): str(starter_completed_message) }
-        '''
-        # 1 - Get Admin Previleges 
-        _tmp_file_lines = ["@ECHO OFF\n"]
-        _tmp_file_lines += self.get_admin
-        
-        # 2 - Create install_progrss.txt
-        _tmp_file_lines.append(f'ECHO 0 > {install_prog_path}\n')
-
-        # 3 - Stop All Services
-        _gen_serv_stoper = os.path.join(self.service_tools_folder, "models_stopper.bat")
-        if os.path.isfile(_gen_serv_stoper):
-            _tmp_file_lines.append(f"start /B /WAIT {_gen_serv_stoper}\n")
-
-        # 4 - Iterate thru instalation models
-        for count, model in enumerate(self.models_list):
-            # 4.1 - Append Models Installer
-            _model_params = self.services_conf['services_params'][model][self.system]
-            _installer_url = _model_params['installer']
-            _installer_args = _model_params['installer_args']
-            _model_version = _model_params['version']
-            _installer_name = _installer_url.split('/')[-1]
-            _tmp_file_lines.append(f'powershell -command "Invoke-WebRequest -Uri {_installer_url} -OutFile ~\{_installer_name}" && start /B /WAIT %UserProfile%\{_installer_name} {" ".join(_installer_args)} && del %UserProfile%\{_installer_name}\n')
-            # 4.2 - Update user models
-            _new_model = json.dumps({
-                model: _model_version
-            }).replace(" ", "").replace('"', '\\"')
-            _tmp_file_lines.append(f'call {app_path}\env\python {app_path}\Tools\SetUserConfigs.py --key models --value "{_new_model}"  > NUL 2>NUL\n')
-            # 4.3 - update install_progrss.txt
-            if count != len(self.models_list) - 1:
-                _tmp_file_lines.append(f'ECHO {count+1} > {install_prog_path}\n')
-        _mem_len_models = len(self.models_list)
-        # 5 - Create Start Run Constantly Services
-        _models_start_path = self.update_models_starter(from_installer=True)
-            
-        if _models_start_path:
-            _tmp_file_lines.append(f"start /B /WAIT {_models_start_path}\n")
-            
-        _tmp_file_lines.append(f'ECHO {_mem_len_models} > {install_prog_path}\n')
-        
-        # 5 - Delete Bat at end of instalation - retrieved from https://stackoverflow.com/a/20333152
-        _tmp_file_lines.append('(goto) 2>nul & del "%~f0"\n')
-
-        # 6 - Create Installer Bat
-        with open(target_bat_path, "w") as fw:
-            fw.writelines(_tmp_file_lines)
-
-        # 7 - Start Installer
-        if start_install:
-            _sproc = subprocess.Popen([target_bat_path])
-            _sproc.poll()
-
     # Bat to Stop ALL Desota Services
     def update_models_stopper(self, only_selected=False, tmp_bat_target=None, autodelete=False):
         '''
@@ -204,6 +148,62 @@ class WinBatManager:
         # Return Start Models .BAT PATH 
         return _models_starter_path
 
+    # Temp Bat to Install New Desota Services
+    def create_models_instalation(self, target_bat_path, install_prog_path, start_install=False):
+        '''
+        :param waiter: Specify a File To write a message when starter as finished - Only Implemented if start_install=True
+        :type waiter: dict{ str(waiter_file_path): str(starter_completed_message) }
+        '''
+        # 1 - Get Admin Previleges 
+        _tmp_file_lines = ["@ECHO OFF\n"]
+        _tmp_file_lines += self.get_admin
+        
+        # 2 - Create install_progrss.txt
+        _tmp_file_lines.append(f'ECHO 0 > {install_prog_path}\n')
+
+        # 3 - Stop All Services
+        _gen_serv_stoper = os.path.join(self.service_tools_folder, "models_stopper.bat")
+        if os.path.isfile(_gen_serv_stoper):
+            _tmp_file_lines.append(f"start /B /WAIT {_gen_serv_stoper}\n")
+
+        # 4 - Iterate thru instalation models
+        for count, model in enumerate(self.models_list):
+            # 4.1 - Append Models Installer
+            _model_params = self.services_conf['services_params'][model][self.system]
+            _installer_url = _model_params['installer']
+            _installer_args = _model_params['installer_args']
+            _model_version = _model_params['version']
+            _installer_name = _installer_url.split('/')[-1]
+            _tmp_file_lines.append(f'powershell -command "Invoke-WebRequest -Uri {_installer_url} -OutFile ~\{_installer_name}" && start /B /WAIT %UserProfile%\{_installer_name} {" ".join(_installer_args)} && del %UserProfile%\{_installer_name}\n')
+            # 4.2 - Update user models
+            _new_model = json.dumps({
+                model: _model_version
+            }).replace(" ", "").replace('"', '\\"')
+            _tmp_file_lines.append(f'call {app_path}\env\python {app_path}\Tools\SetUserConfigs.py --key models --value "{_new_model}"  > NUL 2>NUL\n')
+            # 4.3 - update install_progrss.txt
+            if count != len(self.models_list) - 1:
+                _tmp_file_lines.append(f'ECHO {count+1} > {install_prog_path}\n')
+        _mem_len_models = len(self.models_list)
+        # 5 - Create Start Run Constantly Services
+        _models_start_path = self.update_models_starter(from_installer=True)
+            
+        if _models_start_path:
+            _tmp_file_lines.append(f"start /B /WAIT {_models_start_path}\n")
+            
+        _tmp_file_lines.append(f'ECHO {_mem_len_models} > {install_prog_path}\n')
+        
+        # 5 - Delete Bat at end of instalation - retrieved from https://stackoverflow.com/a/20333152
+        _tmp_file_lines.append('(goto) 2>nul & del "%~f0"\n')
+
+        # 6 - Create Installer Bat
+        with open(target_bat_path, "w") as fw:
+            fw.writelines(_tmp_file_lines)
+
+        # 7 - Start Installer
+        if start_install:
+            _sproc = subprocess.Popen([target_bat_path])
+            _sproc.poll()
+
     # Bat to Uninstall Services
     def create_services_unintalation(self, start_uninstall=False, waiter={os.path.join(app_path, "tmp_uninstaller_status.txt"): 1}):
         _target_bat_path = os.path.join(app_path, "tmp_services_uninstaller.bat")
@@ -258,22 +258,14 @@ class WinBatManager:
         _installer_url = _app_params["installer"]
         _model_version = _app_params['version']
         _installer_name = _installer_url.split('/')[-1]
-        # 1 - Get Admin Previleges 
-        _tmp_file_lines = ["@ECHO OFF\n"]
-        _tmp_file_lines += self.get_admin
-
-        # 2 - Stop All Services
-        _serv_stoper = os.path.join(self.service_tools_folder, "models_stopper.bat")
-        if os.path.isfile(_serv_stoper):
-            _tmp_file_lines.append(f"start /B /WAIT {_serv_stoper}\n")
+        # 1 - File Header
+        _tmp_file_lines = [
+            "@ECHO OFF\n",
+            f'CD /D "{desota_root_path}"\n'
+        ]
 
         # 3 - Crawl and Start APP Re-Instalation
         _tmp_file_lines.append(f'powershell -command "Invoke-WebRequest -Uri {_installer_url} -OutFile ~\{_installer_name}" && start /B /WAIT %UserProfile%\{_installer_name} && del %UserProfile%\{_installer_name}\n')
-
-        # 4 - Start Run Constantly Services
-        _serv_starter = os.path.join(self.service_tools_folder, "models_starter.bat")
-        if os.path.isfile(_serv_starter):
-            _tmp_file_lines.append(f"start /B /WAIT {_serv_starter}\n")
 
         # 5 - Delete Bat at end of instalation - retrieved from https://stackoverflow.com/a/20333152
         _tmp_file_lines.append(f'(goto) 2>nul & del "{_target_bat_path}"\n')
@@ -283,7 +275,7 @@ class WinBatManager:
             fw.writelines(_tmp_file_lines)
 
         if start_upgrade:
-            _sproc = subprocess.Popen([_target_bat_path])
+            _sproc = subprocess.Popen([_target_bat_path], close_fds=True, creationflags=subprocess.DETACHED_PROCESS)
             _sproc.poll()
 
     # Bat to Uninstall Desota Completely
