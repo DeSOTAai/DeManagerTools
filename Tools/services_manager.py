@@ -283,7 +283,8 @@ class WinBatManager:
             fw.writelines(_tmp_file_lines)
 
         if start_upgrade:
-            subprocess.call([_target_bat_path])
+            _sproc = subprocess.Popen([_target_bat_path])
+            _sproc.poll()
 
     # Bat to Uninstall Desota Completely
     def update_desota_uninstaller(self, target_bat_path):
