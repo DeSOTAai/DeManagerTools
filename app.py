@@ -555,10 +555,10 @@ class SGui():
             _curr_serv_conf, _last_serv_conf = self.get_services_config()
             self.services_config, self.latest_services_config = _curr_serv_conf, _last_serv_conf
             
-            if self.services_config["services_params"] == self.latest_services_config["services_params"] and self.services_config["manager_params"] == self.latest_services_config["manager_params"]:
+            if self.services_config["services_params"] == self.latest_services_config["services_params"]:
                 psg.popup("You are currently up to date!\n", title="", icon=self.icon)
                 return "-ignore-"
-            _ok_res = psg.popup_ok("The APP will restart with Updated Models\nPress Ok to proceed", title="", icon=self.icon)
+            _ok_res = psg.popup_ok("The APP will restart with Updated Models\n\nPress Ok to proceed", title="", icon=self.icon)
             if _ok_res:
                 return "-restart-"
             return "-ignore-"
