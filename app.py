@@ -56,15 +56,20 @@ class SGui():
         if not self.services_config:
             raise EnvironmentError()
 
-        with open(os.path.join(config_folder, "user.config.yaml")) as f:
-            self.user_config = yaml.load(f, Loader=SafeLoader)
+        self.user_config = self.get_user_config()
+        if not self.user_config:
+            raise EnvironmentError()
+        
         self.system = self.user_config['system']
         
         #define pysimplegui theme
         psg.theme(self.current_theme)
         
         #define open tab
-        self.set_current_tab(self.tab_keys[0])
+        if self.user_config["models"]:
+            self.set_current_tab(self.tab_keys[0])
+        else:
+            self.set_current_tab(self.tab_keys[1])
 
         #define pysimplegui fonts
         self.header_f = ("Helvetica", 14, "bold")
@@ -109,6 +114,9 @@ class SGui():
         #Define Window
         self.root = psg.Window("Desota - Manager Tools",self.tabgrp, icon=self.icon)
 
+        #Define APP Just Started (check APP Update)
+        self.just_started = True
+
     ## Util Funks
     def get_user_theme(self):
         if not os.path.isfile(os.path.join(app_path, "user_theme.txt")):
@@ -140,14 +148,11 @@ class SGui():
         _target_status_res = os.path.join(app_path, f"tmp_status_serv{_curr_epoch}.txt")
 
         _sproc = subprocess.Popen([get_status_path, _target_status_res])
+        returnCode = _sproc.wait()
 
-
-        _sproc_exit_code = _sproc.wait()
-        while not os.path.isfile(_target_status_res):
-            time.sleep(.3)
-            continue
-
-
+        if not os.path.isfile(_target_status_res):
+            return "unable to get status"
+        
         with open(_target_status_res, "r") as fr:
             _status = fr.read().replace("\n", "").strip()
         os.remove(_target_status_res)
@@ -168,6 +173,25 @@ class SGui():
             with open(self.started_manual_services_file, "r") as fr:
                 return fr.readlines()
         return []
+    
+    def close_manual_services(self):
+        _started_manual_services = self.get_started_manual_services()
+        if not _started_manual_services:
+            return "-done-"
+        psg.popup(
+            f"You have started the manual started Services: {json.dumps(_started_manual_services, indent=4)}\n\nAfter closing this pop-up you'll be requested premission to stop them",  
+            title="", 
+            icon=self.icon
+        )
+        _started_manual_services = [m.replace("\n", "").strip() for m in _started_manual_services]
+        wbm = WinBatManager(self.user_config, self.services_config, _started_manual_services)
+        _target_tmp_stopper = os.path.join(app_path, f"tmp_manual_services_stopper{time.time()}.bat")
+        wbm.update_models_stopper(only_selected=True, tmp_bat_target=_target_tmp_stopper, autodelete=True)
+        subprocess.call([_target_tmp_stopper])
+        
+        os.remove(self.started_manual_services_file)
+
+        return "-done-"
 
     def get_services_config(self, ignore_update=False):
         _serv_conf_path = os.path.join(config_folder, "services.config.yaml")
@@ -195,8 +219,20 @@ class SGui():
     def set_services_config(self):
         _serv_conf_path = os.path.join(config_folder, "services.config.yaml")
         with open(_serv_conf_path, 'w',) as fw:
-            yaml.dump(self.services_config,fw,sort_keys=False)
-        
+            yaml.dump(self.services_config, fw, sort_keys=False)
+
+    def get_user_config(self):
+        _user_config_path = os.path.join(config_folder, "user.config.yaml")
+        if os.path.isfile(_user_config_path):
+            with open(_user_config_path) as f:
+                return yaml.load(f, Loader=SafeLoader)
+        return None
+    
+    def get_app_update(self):
+        _app_curr_v = self.services_config["manager_params"][self.system]["version"]
+        _app_last_v = self.latest_services_config["manager_params"][self.system]["version"]
+        return (_app_curr_v != _app_last_v), _app_curr_v, _app_last_v
+    
     # TAB Constructors
     # TAB 1 - Models Dashboard
     def construct_monitor_models_tab(self):
@@ -222,7 +258,6 @@ class SGui():
                 _tool_desc = _tool_params["short_description"]
                 _tool_status_path = os.path.join(user_path, _tool_params[self.system]["service_path"], _tool_params[self.system]["status"])
                 _tool_status = self.get_service_status(_tool_status_path).lower()
-                _tool_source = _tool_params["source_code"]
                 _tools_data.append([_k, _tool_status, _tool_desc])
             if _tools_data:
                 _dashboard_layout.append([psg.Table(
@@ -254,7 +289,6 @@ class SGui():
                 _tool_desc = _tool_params["short_description"]
                 _tool_status_path = os.path.join(user_path, _tool_params[self.system]["service_path"], _tool_params[self.system]["status"])
                 _tool_status = self.get_service_status(_tool_status_path).lower()
-                _tool_source = _tool_params["source_code"]
                 _models_data.append([_k, _tool_status, _tool_desc])
             if _models_data:
                 _dashboard_layout.append([psg.Table(
@@ -303,14 +337,14 @@ class SGui():
                     _install_layout.append([psg.Text('Desota Tools Services', font=self.title_f)])
                 _install_layout.append([
                     psg.Checkbox(_desota_serv, default=_cb_disabled, disabled=_cb_disabled, key=f"SERVICE {_desota_serv}"),
-                    psg.Button('Source Code', button_color=("Blue","White"), key=f'WEBREQUEST {self.services_config["services_params"][_desota_serv]["source_code"]}', pad=(5, (0,0)))
+                    psg.Button('Source Code', button_color=("Blue","White"), key=f'WEBREQUEST {self.services_config["services_params"][_desota_serv]["source_code"]}', pad=(5, 0))
                 ])
-                _install_layout.append([
-                    psg.Text(f'Description:', font=self.bold_f), psg.Text(f'{self.services_config["services_params"][_desota_serv]["short_description"]}', font=self.default_f),
-                ])
+                _install_layout.append(
+                    [psg.Text(f'Description:', font=self.bold_f, pad=(30, 0)), psg.Text(f'{self.services_config["services_params"][_desota_serv]["short_description"]}', font=self.default_f)]
+                )
 
         if _req_services_header:
-            _install_layout.append([psg.HorizontalSeparator()])
+            _install_layout.append([psg.HorizontalSeparator(pad=(0, 20))])
 
         # TODO: Upgrade Models
         _upgrade_models_header = False
@@ -324,14 +358,14 @@ class SGui():
                     _install_layout.append([psg.Text('Upgradable Services Availabe', font=self.title_f)])
                 _install_layout.append([
                     psg.Checkbox(_serv, key=f"UPGRADE {_serv}"),
-                    psg.Button('Source Code', button_color=("Blue","White"), key=f'WEBREQUEST {self.services_config["services_params"][_serv]["source_code"]}', pad=(5, (0,0)))
+                    psg.Button('Source Code', button_color=("Blue","White"), key=f'WEBREQUEST {self.services_config["services_params"][_serv]["source_code"]}', pad=(5, 0))
                 ])
-                _install_layout.append([
-                    psg.Text(f'Description:', font=self.bold_f), psg.Text(f'{self.services_config["services_params"][_serv]["short_description"]}', font=self.default_f),
-                ])
+                _install_layout.append(
+                    [psg.Text(f'Description:', font=self.bold_f, pad=(30, 0)), psg.Text(f'{self.services_config["services_params"][_serv]["short_description"]}', font=self.default_f)]
+                )
 
         if _upgrade_models_header:
-            _install_layout.append([psg.HorizontalSeparator()])
+            _install_layout.append([psg.HorizontalSeparator(pad=(0, 20))])
         
         # Available Uninstalled Models
         _available_models_header = False
@@ -343,11 +377,11 @@ class SGui():
                 _install_layout.append([psg.Text('Available Models', font=self.title_f)])
             _install_layout.append([
                 psg.Checkbox(_k, key=f"SERVICE {_k}"),
-                psg.Button('Source Code', button_color=("Blue","White"), key=f'WEBREQUEST {self.services_config["services_params"][_k]["source_code"]}', pad=(5, (0,0)))
+                psg.Button('Source Code', button_color=("Blue","White"), key=f'WEBREQUEST {self.services_config["services_params"][_k]["source_code"]}', pad=(5, 0))
             ])
-            _install_layout.append([
-                psg.Text(f'Description:', font=self.bold_f), psg.Text(f'{self.services_config["services_params"][_k]["short_description"]}', font=self.default_f),
-            ])
+            _install_layout.append(
+                [psg.Text(f'Description:', font=self.bold_f, pad=(30, 0)), psg.Text(f'{self.services_config["services_params"][_k]["short_description"]}', font=self.default_f)]
+            )
 
         if not _install_layout:
             return [
@@ -412,84 +446,72 @@ class SGui():
                 _models_2_install.append(_k.split(' ')[1].strip())
             if isinstance(_k, str) and "UPGRADE " in _k and _v:
                 _models_2_upgrade.append(_k.split(' ')[1].strip())
-        print(f" [ DEBUG ] -> Models to install = {_models_2_install} ")
-        print(f" [ DEBUG ] -> Models to upgrade = {_models_2_upgrade} ")
-        if not _models_2_install and not _models_2_upgrade:
+        _models_2_upgrade += _models_2_install
+        print(f" [ DEBUG ] -> Models to install = {_models_2_upgrade} ")
+        if not _models_2_upgrade:
             return "-ignore-"
         
-        _instalation_dic = {}
-        if _models_2_install:
-            _instalation_dic["install"] = _models_2_install
-        if _models_2_upgrade:
-            _instalation_dic["upgrade"] = _models_2_upgrade
         
-        _ammount_models = len(_models_2_install) + len(_models_2_upgrade)
+        _ammount_models = len(_models_2_upgrade)
+        
+        _ok_res = psg.popup_ok(f"You will install the following models: {json.dumps(_models_2_upgrade, indent=4)}\nPress Ok to proceed", title="", icon=self.icon)
+        if not _ok_res:
+            return "-ignore-"
         
         if self.system == "win":
-            _instalation_ignored = False
-            _upgrade_ignored = False
-            for _install_type, _models in _instalation_dic.items():
-                if _install_type == "install":
-                    _ok_res = psg.popup_ok(f"You will install the following models: {json.dumps(_models, indent=4)}\nPress Ok to proceed", title="", icon=self.icon)
-                    if not _ok_res:
-                        _instalation_ignored = True
-                    wbm = WinBatManager(self.user_config, self.services_config, _models)
-                elif _install_type == "upgrade":
-                    _ok_res = psg.popup_ok(f"You will update the following models: {json.dumps(_models, indent=4)}\nPress Ok to proceed", title="", icon=self.icon)
-                    if not _ok_res:
-                        _upgrade_ignored = True
-                    wbm = WinBatManager(self.user_config, self.latest_services_config, _models)
-                _installer_tmp_path = os.path.join(out_bat_folder, "desota_tmp_installer.bat")
-                _starter_wait_path = os.path.join(app_path, f"starter_finished{time.time()}.txt")
-                _waiter_msg = "done"
-                wbm.create_models_instalation(_installer_tmp_path, start_install=True, 
-                    waiter={_starter_wait_path: _waiter_msg}
-                )
-                self.root['startInstall'].update(disabled=True)
-                self.root['installPBAR'].update(current_count=0)
-                _install_prog_file = os.path.join(app_path, "install_progress.txt")
-                _mem_prog = 0
-                while True:
-                    if not os.path.isfile(_install_prog_file):
-                        _curr_prog_file = 0
-                    else:
-                        with open(_install_prog_file, "r") as fr:
-                            _curr_prog_file = fr.read().replace("\n", "").strip()
-                    if _curr_prog_file == "":
-                        _curr_prog_file = _mem_prog
-                    else:
-                        _curr_prog_file = int(_curr_prog_file)
-                    if _mem_prog != _curr_prog_file:
-                        _mem_prog = _curr_prog_file
-                    _curr_prog = (_curr_prog_file/_ammount_models) * 100
-                    self.root['installPBAR'].update(current_count=_curr_prog)
+            wbm = WinBatManager(self.user_config, self.latest_services_config, _models_2_upgrade)
+            _installer_tmp_path = os.path.join(out_bat_folder, "desota_tmp_installer.bat")
+            _install_prog_file = os.path.join(app_path, "install_progress.txt")
+            wbm.create_models_instalation(_installer_tmp_path, _install_prog_file, start_install=True)
+            del wbm
+            
+            self.root['startInstall'].update(disabled=True)
+            self.root['installPBAR'].update(current_count=0)
+            
+            _mem_prog = 0
+            while True:
+                if not os.path.isfile(_install_prog_file):
+                    _curr_prog_file = 0
+                else:
+                    with open(_install_prog_file, "r") as fr:
+                        _curr_prog_file = fr.read().replace("\n", "").strip()
+                        
+                if _curr_prog_file == "":
+                    _curr_prog_file = _mem_prog
+                else:
+                    _curr_prog_file = int(_curr_prog_file)
                     
-                    if _curr_prog == 100 and os.path.isfile(_starter_wait_path):
-                        with open(_starter_wait_path, "r") as fr:
-                            _waiter_res = fr.read().replace("\n", "").strip()
-                        if _waiter_res == _waiter_msg:
-                            os.remove(_install_prog_file)
-                            os.remove(_starter_wait_path)
-                            wbm.update_models_stopper()
-                            # REMOVE WAITER ECHOS
-                            wbm.update_models_starter(from_installer=True)
-                            break
-                    else:
-                        _ml_res = self.main_loop(ignore_event=[], timeout=50)
-                        #TODO : 
-                        # if _ml_res == "-close-"
-                        # if _ml_res == "-restart-"
-                        # if _ml_res == "-ignore-"
-            if ("install" in _instalation_dic and _instalation_ignored) and ("upgrade" in _instalation_dic and _upgrade_ignored):
-                return "-ignore-"
-            elif ("install" in _instalation_dic and _instalation_ignored) or ("upgrade" in _instalation_dic and _upgrade_ignored):
-                return "-ignore-"
+                if _mem_prog != _curr_prog_file:
+                    _mem_prog = _curr_prog_file
+                    
+                _curr_prog = (_curr_prog_file/_ammount_models) * 100
+                self.root['installPBAR'].update(current_count=_curr_prog)
+                
+                if _curr_prog == 100:
+                    os.remove(_install_prog_file)
+                    break
+                    
+                _ml_res = self.main_loop(ignore_event=[], timeout=50)
+                #TODO : 
+                # if _ml_res == "-close-"
+                # if _ml_res == "-restart-"
+                # if _ml_res == "-ignore-"
             
             if _models_2_upgrade:
                 for up_model in _models_2_upgrade:
                     self.services_config["services_params"][up_model] = self.latest_services_config["services_params"][up_model]
-                self.set_services_config()
-            return "-restart-"
+            self.set_services_config()
+            
+            self.user_config = self.get_user_config()
+            stop_wbm = WinBatManager(self.user_config, self.latest_services_config, self.user_config["models"])
+            stop_wbm.update_models_stopper(only_selected=True)
+            del stop_wbm
+            
+        _ok_res = psg.popup_ok(f"Instalation Completed!\n\nThe APP will restart!\n\nPress Ok to proceed", title="", icon=self.icon)
+        if not _ok_res:
+            return "-ignore-"
+        
+        return "-restart-"
 
     # - Tool Table row selected
     def tool_table_row_selected(self, values):
@@ -581,14 +603,14 @@ class SGui():
                 #Start Run Constantly Services
                 _start_run_constantly_serv_path = os.path.join(config_folder, "Services", "models_starter.bat")
                 _sproc = subprocess.Popen([_start_run_constantly_serv_path])
-                _sproc_exit_code = _sproc.wait()
                 _res = "-restart-"
                 while True:
                     try:
-                        _hs_req = requests.get(_model_req_hs)
-                        if _hs_req.status_code == 200 and _hs_req.json() == _model_res_hs:
-                            webbrowser.open(_model_ui_url)
-                            return _res
+                        if _sproc.poll() == 0:
+                            _hs_req = requests.get(_model_req_hs)
+                            if _hs_req.status_code == 200 and _hs_req.json() == _model_res_hs:
+                                webbrowser.open(_model_ui_url)
+                                return _res
                     except:
                         pass
                     _ml_res = self.main_loop(ignore_event=[], timeout=50)
@@ -632,14 +654,14 @@ class SGui():
                     _model_serv_params["starter"]
                 )
                 _sproc = subprocess.Popen([_model_service_start_path])
-                _sproc_exit_code = _sproc.wait()
-                print(f' [ INFO ] -> Start MODEL exit code -> {_sproc_exit_code}')
+
                 while True:
                     try:
-                        _hs_req = requests.get(_model_req_hs)
-                        if _hs_req.status_code == 200 and _hs_req.json() == _model_res_hs:
-                            webbrowser.open(_model_ui_url, autoraise=False)
-                            return _res
+                        if _sproc.poll() == 0:
+                            _hs_req = requests.get(_model_req_hs)
+                            if _hs_req.status_code == 200 and _hs_req.json() == _model_res_hs:
+                                webbrowser.open(_model_ui_url, autoraise=False)
+                                return _res
                     except:
                         pass
                     _ml_res = self.main_loop(ignore_event=[], timeout=50)
@@ -701,61 +723,54 @@ class SGui():
             _after_un_models = None
         
         if self.system == "win":
-            wbm = WinBatManager(self.user_config, self.services_config, _after_un_models)
-            _starter_wait_path = os.path.join(app_path, f"starter_finished{time.time()}.txt")
-            _starter_msg = "done"
-            _upd_models_starter_res = wbm.update_models_starter(waiter={_starter_wait_path: _starter_msg})
-            del wbm
+            # Get user_config to update model starter
+            if _after_un_models:
+                self.user_config["models"] = _after_un_models.copy()
+            else:
+                self.user_config["models"] = _after_un_models
+                
+            end_wbm = WinBatManager(self.user_config, self.services_config, self.user_config["models"])
+            end_wbm.update_models_starter()
             
             wbm = WinBatManager(self.user_config, self.services_config, _models_2_uninstall)
             uninstall_waiter_path = os.path.join(app_path, f"tmp_uninstaller_status{time.time()}.txt")
             wbm.create_services_unintalation(start_uninstall=True, waiter={uninstall_waiter_path: 1})
+            del wbm
             
             while True:
                 if os.path.isfile(uninstall_waiter_path):
                     with open(uninstall_waiter_path, "r") as fr:
                         _waiter_res = fr.read().replace("\n", "").strip()
                     if _waiter_res == "1":
-                        if _upd_models_starter_res:
-                            if os.path.isfile(_starter_wait_path):
-                                with open(_starter_wait_path, "r") as fr:
-                                    _starter_res = fr.read().replace("\n", "").strip()
-                                if _starter_res == _starter_msg:
-                                    break
-                        else:
-                            break
+                        break
                 _ml_res = self.main_loop(ignore_event=[], timeout=50)
                 #TODO : 
                 # if _ml_res == "-close-"
                 # if _ml_res == "-restart-"
                 # if _ml_res == "-ignore-"
 
-            del wbm
-            os.remove(uninstall_waiter_path)
-            if _upd_models_starter_res:
-                os.remove(_starter_wait_path)
             
-            if _after_un_models:
-                self.user_config["models"] = _after_un_models.copy()
-            else:
-                self.user_config["models"] = _after_un_models
-
+            os.remove(uninstall_waiter_path)
+            
+            end_wbm.update_models_stopper()
+            del end_wbm
+            
             with open(os.path.join(config_folder, "user.config.yaml"), 'w',) as fw:
                 yaml.dump(self.user_config,fw,sort_keys=False)
-                
-            wbm = WinBatManager(self.user_config, self.services_config, self.user_config["models"])
-            wbm.update_models_stopper()
-            # REMOVE WAITER ECHOS
-            if _upd_models_starter_res:
-                wbm.update_models_starter()
-            del wbm
+            
 
         self.set_installed_services()
+        _ok_res = psg.popup("Uninstalation Completed!\n\nThe APP will restart!\n\nPress Ok to proceed", title="", icon=self.icon)
+        if not _ok_res:
+            return "-ignore-"
+        
         return "-restart-"
 
     # - Stop All Started Manual Start/Stop Services
     def stop_manual_services(self, values):
         _started_manual_services = self.get_started_manual_services()
+        if not _started_manual_services:
+            return "-ignore-"
         _started_manual_services = [m.replace("\n", "").strip() for m in _started_manual_services]
         _popup_ok = psg.popup_ok(
             f"You will stop the following manual controlled Services: {json.dumps(_started_manual_services, indent=4)}",  
@@ -768,18 +783,11 @@ class SGui():
         
         wbm = WinBatManager(self.user_config, self.services_config, _started_manual_services)
         _target_tmp_stopper = os.path.join(app_path, f"tmp_manual_services_stopper{time.time()}.bat")
-        _target_tmp_stopper_wait = os.path.join(app_path, f"tmp_manual_services_stoppen_wait{time.time()}.txt")
-        _stopper_waiter_msg = "stopped"
-        wbm.update_models_stopper(only_selected=True, tmp_bat_target=_target_tmp_stopper, waiter={_target_tmp_stopper_wait: _stopper_waiter_msg})
+        wbm.update_models_stopper(only_selected=True, tmp_bat_target=_target_tmp_stopper)
         _sproc = subprocess.Popen([_target_tmp_stopper])
-        _sproc_exit_code = _sproc.wait()
-
         while True:
-            if os.path.isfile(_target_tmp_stopper_wait):
-                with open(_target_tmp_stopper_wait, "r") as fr:
-                    _waiter_res = fr.read().replace("\n", "").strip()
-                if _waiter_res == _stopper_waiter_msg:
-                    break
+            if _sproc.poll() == 0:
+                break
             _ml_res = self.main_loop(ignore_event=[], timeout=50)
             #TODO : 
             # if _ml_res == "-close-"
@@ -789,7 +797,6 @@ class SGui():
         wbm.update_models_stopper()
         os.remove(self.started_manual_services_file)
         os.remove(_target_tmp_stopper)
-        os.remove(_target_tmp_stopper_wait)
 
         return "-restart-"
 
@@ -797,19 +804,42 @@ class SGui():
     # Get Class Method From Event and Run Method
     def main_loop(self, ignore_event=[], timeout=None):
         try:
+            # Check For APP UPGRADES
+            if self.just_started:
+                self.just_started = False
+                _app_update, _app_curr_v, _app_last_v = self.get_app_update()
+                if _app_update:
+                    _app_upgrade = psg.popup_yes_no(
+                        f"New release of the `DeSOTA - Manager Tools` is available!\nCurrent version: {_app_curr_v}\nLatest version : {_app_last_v}\n\nDo you want to upgrade the `DeSOTA - Manager Tools`?",
+                        title="DeSOTA - Manager Tools",
+                        icon=self.icon,
+                    )
+                    if _app_upgrade == "Yes":
+                        wbm = WinBatManager(self.user_config, self.latest_services_config)
+                        wbm.upgrade_app(start_upgrade=True)
+
+                        self.services_config["manager_params"] = self.latest_services_config["manager_params"]
+                        self.set_services_config()
+
+                        self.set_app_status(0)
+                        self.root.close()
+                        return "-close-"
+                    
             #Read  values entered by user
             _event, _values = self.root.read(timeout=timeout)
         except:
             _event = psg.WIN_CLOSED
 
         if _event == psg.WIN_CLOSED:
+            self.close_manual_services()
             self.set_app_status(0)
-            self.root.close()    
+            self.root.close()
             return "-close-"
+        
         elif _event == psg.TIMEOUT_KEY:
             return "-timeout-"
         
-        # TAB CHANGED
+        # HANDLE TAB CHANGE
         elif isinstance(_event, int):
             self.current_tab = _values[_event]
             return "-ignore-"
