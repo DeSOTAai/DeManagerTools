@@ -39,3 +39,14 @@ This repository purpose is:
  ![API Tab](Assets/readme_files/readme_api_tab.png)
 
   - Under development...
+
+  ## Upgrade DeManagerTools
+
+  If new version of the app is available you'll be prompted with a similar as the following pop-up:
+
+  ![Upgrade APP](Assets/readme_files/upgrade_app.PNG)
+
+ ## Latest DeSOTA Services
+
+  The latest DeSOTA Services are available [here](https://github.com/DeSOTAai/DeRunner/blob/main/Assets/latest_services.config.yaml)
+  
