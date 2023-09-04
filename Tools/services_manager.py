@@ -275,6 +275,7 @@ class WinBatManager:
             fw.writelines(_tmp_file_lines)
 
         if start_upgrade:
+            # retrieved from https://stackoverflow.com/a/42499763
             _sproc = subprocess.Popen([_target_bat_path], close_fds=True, creationflags=subprocess.DETACHED_PROCESS)
             _sproc.poll()
 

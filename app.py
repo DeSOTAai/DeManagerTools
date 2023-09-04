@@ -146,11 +146,12 @@ class SGui():
     def get_service_status(self, get_status_path):
         _curr_epoch = time.time()
         _target_status_res = os.path.join(app_path, f"tmp_status_serv{_curr_epoch}.txt")
-
+        # retrieved from https://stackoverflow.com/a/62226026
         _sproc = subprocess.Popen(
-            [get_status_path, _target_status_res], 
+            [get_status_path, _target_status_res],
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.STDOUT
+            stderr=subprocess.STDOUT,
+            creationflags=subprocess.CREATE_NO_WINDOW
         )
 
         returnCode = _sproc.wait()
