@@ -147,7 +147,12 @@ class SGui():
         _curr_epoch = time.time()
         _target_status_res = os.path.join(app_path, f"tmp_status_serv{_curr_epoch}.txt")
 
-        _sproc = subprocess.Popen([get_status_path, _target_status_res])
+        _sproc = subprocess.Popen(
+            [get_status_path, _target_status_res], 
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.STDOUT
+        )
+
         returnCode = _sproc.wait()
 
         if not os.path.isfile(_target_status_res):
@@ -901,7 +906,7 @@ def main():
             continue
 
         elif _sgui_res == "-close-":
-            break
+            return 0
         
 if __name__ == "__main__":
     main()
