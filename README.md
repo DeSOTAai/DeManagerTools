@@ -52,7 +52,7 @@ This repository purpose is:
   
 # Install
 
-> Download [this](https://github.com/DeSOTAai/DeManagerTools/blob/main/executables/Windows/demanagertools.install.bat) Raw File - `Bash Shell Script Installer`
+> Download [this](https://github.com/DeSOTAai/DeManagerTools/blob/main/executables/Windows/demanagertools.install.bat) as Raw File - `Bash Shell Script Installer`
 
 > Start the `Bash Shell Script Installer`
 
