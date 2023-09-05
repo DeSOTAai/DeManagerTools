@@ -42,7 +42,7 @@ This repository purpose is:
 
   ## Upgrade DeManagerTools
 
-  If new version of the app is available you'll be prompted with a similar as the following pop-up:
+  If new version of the app is available you'll be prompted with a pop-up similar to:
 
   ![Upgrade APP](Assets/readme_files/upgrade_app.PNG)
 
@@ -50,3 +50,9 @@ This repository purpose is:
 
   The latest DeSOTA Services are available [here](https://github.com/DeSOTAai/DeRunner/blob/main/Assets/latest_services.config.yaml)
   
+# Install
+
+> Download [this](https://github.com/DeSOTAai/DeManagerTools/blob/main/executables/Windows/demanagertools.install.bat) Raw File - `Bash Shell Script Installer`
+
+> Start the `Bash Shell Script Installer`
+
