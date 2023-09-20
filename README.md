@@ -1,3 +1,7 @@
+# Install
+
+[![Install DeManagerTools](https://img.shields.io/static/v1?label=Desota%20-%20Manager%20Tools&message=Install&color=blue&logo=windows)](http://129.152.27.36/assistant/download.php?system=win&file=demanagertools)
+
 # About DeManagerTools
 
 ## Description
@@ -50,9 +54,3 @@ This repository purpose is:
 
   The latest DeSOTA Services are available [here](https://github.com/DeSOTAai/DeRunner/blob/main/Assets/latest_services.config.yaml)
   
-# Install
-
-> Download [this](https://github.com/DeSOTAai/DeManagerTools/blob/main/executables/Windows/demanagertools.install.bat) as Raw File - `Bash Shell Script Installer`
-
-> Start the `Bash Shell Script Installer`
-
