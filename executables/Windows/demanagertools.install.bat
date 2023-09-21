@@ -148,7 +148,7 @@ IF %PROCESSOR_ARCHITECTURE%==x86 powershell -command "Invoke-WebRequest -Uri %mi
 ECHO %info_h2%Creating MiniConda Environment...%ansi_end% 
 call %UserProfile%\Desota\Portables\miniconda3\condabin\conda create --prefix ./env python=3.11 -y  > NUL 2>NUL
 call %UserProfile%\Desota\Portables\miniconda3\condabin\conda activate ./env  > NUL 2>NUL
-call %UserProfile%\Desota\Portables\miniconda3\condabin\conda install pip  > NUL 2>NUL
+call %UserProfile%\Desota\Portables\miniconda3\condabin\conda install pip -y > NUL 2>NUL
 
 :: Install required Libraries
 ECHO %info_h1%Step 6/9 - Install Project Packages%ansi_end%
