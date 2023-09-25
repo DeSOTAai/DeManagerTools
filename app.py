@@ -375,7 +375,7 @@ class SGui():
         
         # Available Uninstalled Models
         _available_models_header = False
-        for _k, _v in self.services_config['services_params'].items():
+        for _k, _v in self.latest_services_config['services_params'].items():
             if (self.user_config['models'] and _k in self.user_config['models'] ) or (_v["submodel"] == True) or (_k in self.tools_services):
                 continue
             if not _available_models_header:
@@ -383,10 +383,10 @@ class SGui():
                 _install_layout.append([psg.Text('Available Models', font=self.title_f)])
             _install_layout.append([
                 psg.Checkbox(_k, key=f"SERVICE {_k}"),
-                psg.Button('Source Code', button_color=("Blue","White"), key=f'WEBREQUEST {self.services_config["services_params"][_k]["source_code"]}', pad=(5, 0))
+                psg.Button('Source Code', button_color=("Blue","White"), key=f'WEBREQUEST {self.latest_services_config["services_params"][_k]["source_code"]}', pad=(5, 0))
             ])
             _install_layout.append(
-                [psg.Text(f'Description:', font=self.bold_f, pad=(30, 0)), psg.Text(f'{self.services_config["services_params"][_k]["short_description"]}', font=self.default_f)]
+                [psg.Text(f'Description:', font=self.bold_f, pad=(30, 0)), psg.Text(f'{self.latest_services_config["services_params"][_k]["short_description"]}', font=self.default_f)]
             )
 
         if not _install_layout:
@@ -591,7 +591,7 @@ class SGui():
     # - Open Models UI
     def model_ui_handle(self, model_name):
         _res = None
-        if "model_ui" in self.services_config["services_params"][model_name]:
+        if "model_ui" in self.services_config["services_params"][model_name] and self.services_config["services_params"][model_name]["model_ui"]:
             _model_params = self.services_config["services_params"][model_name]
             _model_ui_url = _model_params["model_ui"]
             _model_req_hs = _model_params["handshake_req"]
@@ -675,6 +675,27 @@ class SGui():
                     # if _ml_res == "-close-"
                     # if _ml_res == "-restart-"
                     # if _ml_res == "-ignore-"
+        
+        elif  "model_cli" in self.services_config["services_params"][model_name] and self.services_config["services_params"][model_name]["model_cli"]:
+            cli_cmd = []
+            for mc in self.services_config["services_params"][model_name][self.system][self.services_config["services_params"][model_name]["model_cli"]]:
+                # PATH TEST (get files and arguments)
+                _tmp_path = os.path.join(user_path, mc)
+                if os.path.isfile(_tmp_path):
+                    # Files
+                    cli_cmd.append(_tmp_path)
+                else:
+                    # Arguments
+                    cli_cmd.append(mc)
+            
+            print(f" [ DEBUG ] - CLI Model cmd: {cli_cmd}")
+                
+            _sproc = subprocess.Popen(
+                cli_cmd,
+                creationflags = subprocess.CREATE_NEW_CONSOLE
+                ).poll()
+            _res = "-done-"
+            
         return _res
     def open_models_ui(self, values):
         self.set_installed_services()

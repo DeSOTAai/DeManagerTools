@@ -157,6 +157,8 @@ call pip install -r requirements.txt  > NUL 2>NUL
 :: Create App EXE
 ECHO %info_h1%Step 7/9 - Create APP .EXE%ansi_end%
 call pyinstaller -D --noconsole -n "Desota - Manager Tools" -i "%manager_path_install%\Assets\icon.ico" %manager_path_install%\app.py > NUL 2>NUL
+
+:: Dectivate Conda Virtual Environment
 call %UserProfile%\Desota\Portables\miniconda3\condabin\conda deactivate  > NUL 2>NUL
 
 :: Create App ShortCut
