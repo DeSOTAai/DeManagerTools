@@ -78,10 +78,10 @@ class WinBatManager:
         for _model in _res_models:
             _model_param_path = self.services_conf["services_params"][_model][self.system]["service_path"]
             _model_param_stop = self.services_conf["services_params"][_model][self.system]["stoper"]
-
-            _model_stop_path = os.path.join(user_path, _model_param_path, _model_param_stop)
-            
-            _tmp_file_lines.append(f"start /B /WAIT {_model_stop_path}\n")
+            if _model_param_stop:
+                _model_stop_path = os.path.join(user_path, _model_param_path, _model_param_stop)
+                
+                _tmp_file_lines.append(f"start /B /WAIT {_model_stop_path}\n")
             
         if autodelete:
             _tmp_file_lines.append('(goto) 2>nul & del "%~f0"\n')
@@ -129,9 +129,10 @@ class WinBatManager:
 
             _model_param_path = self.services_conf["services_params"][_model][self.system]["service_path"]
             _model_param_start = self.services_conf["services_params"][_model][self.system]["starter"]
-            _model_start_path = os.path.join(user_path, _model_param_path, _model_param_start)
-            
-            _tmp_file_lines.append(f"start /B /WAIT {_model_start_path}\n")
+            if _model_param_start:
+                _model_start_path = os.path.join(user_path, _model_param_path, _model_param_start)
+                
+                _tmp_file_lines.append(f"start /B /WAIT {_model_start_path}\n")
 
         if not _exist_run_constantly_model:
             if os.path.isfile(_models_starter_path):

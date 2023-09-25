@@ -262,8 +262,8 @@ class SGui():
                     _dashboard_layout.append([psg.Text('Installed Desota Tools', font=self.header_f)])
                 _tool_params = self.services_config["services_params"][_k]
                 _tool_desc = _tool_params["short_description"]
-                _tool_status_path = os.path.join(user_path, _tool_params[self.system]["service_path"], _tool_params[self.system]["status"])
-                _tool_status = self.get_service_status(_tool_status_path).lower()
+                _tool_status_path = os.path.join(user_path, _tool_params[self.system]["service_path"], _tool_params[self.system]["status"]) if _tool_params[self.system]["status"] else None
+                _tool_status = self.get_service_status(_tool_status_path).lower() if _tool_status_path else "Not Service"
                 _tools_data.append([_k, _tool_status, _tool_desc])
             if _tools_data:
                 _dashboard_layout.append([psg.Table(
@@ -293,8 +293,8 @@ class SGui():
                     _dashboard_layout.append([psg.Text('Installed AI Models', font=self.header_f, pad=(0, (20,0)) if _tools_data else (0, (0,0)))])
                 _tool_params = self.services_config["services_params"][_k]
                 _tool_desc = _tool_params["short_description"]
-                _tool_status_path = os.path.join(user_path, _tool_params[self.system]["service_path"], _tool_params[self.system]["status"])
-                _tool_status = self.get_service_status(_tool_status_path).lower()
+                _tool_status_path = os.path.join(user_path, _tool_params[self.system]["service_path"], _tool_params[self.system]["status"]) if _tool_params[self.system]["status"] else None
+                _tool_status = self.get_service_status(_tool_status_path).lower() if _tool_status_path else "Not a Service"
                 _models_data.append([_k, _tool_status, _tool_desc])
             if _models_data:
                 _dashboard_layout.append([psg.Table(
