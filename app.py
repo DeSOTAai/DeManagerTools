@@ -289,11 +289,13 @@ class SGui():
             )
 
         if not _install_layout:
+            self.exist_installer = False
             return [
                 [psg.Text('You are an absolute LEGEND!', font=self.header_f)],
                 [psg.Text('You have currently installed all DeSOTA Models!', font=self.default_f)],
                 [psg.Button('Check 4 Upgrades', button_color=("White","Black"), key="upgradeServConf")]
             ]
+        self.exist_installer = True
         return [
             [psg.Column(_install_layout, size=(800,400), scrollable=True, key="_SCROLL_COL2_")],
             [
@@ -872,8 +874,10 @@ class SGui():
             _size_x, _size_y = self.root.size
 
             # (865, 529)
-            self.column_set_size(self.root["_SCROLL_COL1_"], (_size_x-65, _size_y-129))
-            self.column_set_size(self.root["_SCROLL_COL2_"], (_size_x-65, _size_y-129))
+            if self.user_config['models']:
+                self.column_set_size(self.root["_SCROLL_COL1_"], (_size_x-65, _size_y-129))
+            if self.exist_installer:
+                self.column_set_size(self.root["_SCROLL_COL2_"], (_size_x-65, _size_y-129))
 
             self.root_size = self.root.size
     
