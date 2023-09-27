@@ -9,7 +9,8 @@ import requests
 
 DEBUG = True
 DESOTA_TOOLS_SERVICES = {    # Desc -> Service: Checkbox Disabled = REQUIRED
-    "desotaai/derunner": True
+    "desotaai/derunner": True,
+    "franciscomvargas/deurlcruncher": False
 }
 EVENT_TO_METHOD = {
     "TABMOVE": "move_2_tab",
@@ -22,7 +23,8 @@ EVENT_TO_METHOD = {
     "openSource": "open_models_sourcecode",
     "openModelUI": "open_models_ui",
     "startUninstall": "uninstall_services",
-    "stopManualServices": "stop_manual_services"
+    "stopManualServices": "stop_manual_services",
+    "windowConfigure": "window_configure"
 }
 
 user_path=os.path.expanduser('~')
@@ -84,7 +86,8 @@ class SGui():
         
         #define Tab Group Layout
         self.tabgrp = [
-            [psg.Text('Theme: ', font=self.default_f, pad=((626,0),(0,0))), psg.Combo(values=self.themes, size=(20), default_value=self.current_theme, enable_events=True, key='selectTheme')],
+            # pad=((626,0),(0,0)), 
+            [psg.Push(), psg.Text('Theme: ', font=self.default_f, key="pad_theme"), psg.Combo(values=self.themes, size=(20), default_value=self.current_theme, enable_events=True, key='selectTheme')],
             [psg.TabGroup(
                 [[
                     psg.Tab('Models Dashboard', self.tab1, title_color='Red',border_width =10, background_color=None,tooltip='', element_justification= 'left', key=self.tab_keys[0]),
@@ -112,10 +115,217 @@ class SGui():
         self.user_models = []
 
         #Define Window
-        self.root = psg.Window("Desota - Manager Tools",self.tabgrp, icon=self.icon)
+        self.root = psg.Window(
+            "Desota - Manager Tools",
+            self.tabgrp, 
+            icon=self.icon,
+            default_element_size=(12, 1),
+            resizable=True,
+            finalize=True
+        )
+        self.root_size, self.root.size = self.root.size, self.root.size
+        self.root.bind('<Configure>',"windowConfigure")
 
         #Define APP Just Started (check APP Update)
         self.just_started = True
+
+    # TAB Constructors
+    # TAB 1 - Models Dashboard
+    def construct_monitor_models_tab(self):
+        # No Models Available
+        if not self.user_config['models']:
+            return [
+                [psg.Text('No Model Installed', font=self.header_f)],
+                [psg.Button('Install Models', key=f"TABMOVE {self.tab_keys[1]}")]
+            ]
+        # Models Available
+        else: # Inspited in https://stackoverflow.com/a/65778327 
+            _dashboard_layout = []
+            
+            # Tools Table
+            _tools_data = []
+            _tool_table_header = ["Tool", "Service Status", "Description"]
+            for _k, _v in self.user_config['models'].items():
+                if _k not in self.tools_services:
+                    continue
+                if not _tools_data:
+                    _dashboard_layout.append([psg.Text('Installed Tools', font=self.header_f)])
+                _tool_params = self.services_config["services_params"][_k]
+                _tool_desc = _tool_params["short_description"]
+                _tool_status_path = os.path.join(user_path, _tool_params[self.system]["service_path"], _tool_params[self.system]["status"]) if _tool_params[self.system]["status"] else None
+                _tool_status = self.get_service_status(_tool_status_path).lower() if _tool_status_path else "Not Service"
+                _tools_data.append([_k, _tool_status, _tool_desc])
+            if _tools_data:
+                _dashboard_layout.append([psg.Table(
+                    values=_tools_data, 
+                    headings=_tool_table_header, 
+                    max_col_width=40,
+                    auto_size_columns=True,
+                    display_row_numbers=False,
+                    justification='center',
+                    num_rows=len(_tools_data),
+                    alternating_row_color='#000020',
+                    select_mode=psg.TABLE_SELECT_MODE_EXTENDED,
+                    enable_events=True,
+                    row_height=25,
+                    hide_vertical_scroll=True,
+                    key='tool_table'
+                )])
+                # _dashboard_layout.append([psg.Graph()]) #TODO
+            
+            # Models Table
+            _models_data = []
+            _model_table_header = ["AI Model", "Service Status", "Description"]
+            for _k, _v in self.user_config['models'].items():
+                if _k in self.tools_services:
+                    continue
+                if not _models_data:
+                    _dashboard_layout.append([psg.Text('Installed AI Models', font=self.header_f, pad=(0, (20,0)) if _tools_data else (0, (0,0)))])
+                _tool_params = self.services_config["services_params"][_k]
+                _tool_desc = _tool_params["short_description"]
+                _tool_status_path = os.path.join(user_path, _tool_params[self.system]["service_path"], _tool_params[self.system]["status"]) if _tool_params[self.system]["status"] else None
+                _tool_status = self.get_service_status(_tool_status_path).lower() if _tool_status_path else "Not a Service"
+                _models_data.append([_k, _tool_status, _tool_desc])
+            if _models_data:
+                _dashboard_layout.append([psg.Table(
+                    values=_models_data, 
+                    headings=_model_table_header, 
+                    max_col_width=40,
+                    auto_size_columns=True,
+                    display_row_numbers=False,
+                    justification='center',
+                    num_rows=len(_models_data),
+                    alternating_row_color='#000020',
+                    select_mode=psg.TABLE_SELECT_MODE_EXTENDED,
+                    enable_events=True,
+                    row_height=25,
+                    hide_vertical_scroll=True,
+                    key='model_table'
+                )])
+                # _dashboard_layout.append([psg.Graph()]) #TODO
+
+            # Handle Stop Manual Services
+            _started_malual_services = self.get_started_manual_services()
+            if _started_malual_services:
+                _disabled = False
+            else:
+                _disabled = True
+
+            return [
+                [psg.Column(_dashboard_layout, size=(800, 400), scrollable=True, key="_SCROLL_COL1_")],
+                [
+                    psg.Button('Take a Peek', button_color=("Green","White"), key="openModelUI", pad=(5, 0)), 
+                    psg.Button('Source Code', button_color=("Blue","White"), key="openSource", pad=(5, 0)),
+                    psg.Button('Stop Manual Services', button_color=("Orange","White"), key="stopManualServices", disabled=_disabled,pad=(5, 0)),
+                    psg.Button('Uninstall', button_color=("Red","White"), key="startUninstall", pad=(5, 0))
+                ]
+            ]
+    
+    # TAB 2 - Models Instalation
+    def construct_install_tab(self):
+        _install_layout = []
+        # Desota Tools Services
+        _req_services_header = False
+        for _desota_serv, _cb_disabled in self.tools_services.items():
+            if not self.user_config['models'] or _desota_serv not in self.user_config['models']:
+                if not _req_services_header:
+                    _req_services_header = True
+                    _install_layout.append([psg.Text('Available Tools', font=self.header_f)])
+                _install_layout.append([
+                    psg.Checkbox(_desota_serv, font=self.title_f, default=_cb_disabled, disabled=_cb_disabled, key=f"SERVICE {_desota_serv}"),
+                    psg.Button('Source Code', button_color=("Blue","White"), key=f'WEBREQUEST {self.services_config["services_params"][_desota_serv]["source_code"]}', pad=(5, 0))
+                ])
+                _install_layout.append(
+                    [
+                        psg.Text(f'Description:', font=self.bold_f, pad=(30, 0)), 
+                        psg.Text(f'{self.services_config["services_params"][_desota_serv]["short_description"]}', font=self.default_f)
+                    ]
+                )
+
+        if _req_services_header:
+            _install_layout.append([psg.HorizontalSeparator(pad=(0, 20))])
+
+        # TODO: Upgrade Models
+        _upgrade_models_header = False
+        for _serv, _params in self.latest_services_config['services_params'].items():
+            if _params["submodel"] == True:
+                continue
+            _latest_model_version = _params[self.system]['version']
+            if self.user_config['models'] and _serv in self.user_config['models'] and self.user_config['models'][_serv] != _latest_model_version:
+                if not _upgrade_models_header:
+                    _upgrade_models_header = True
+                    _install_layout.append([psg.Text('Availabe Upgrades', font=self.header_f)])
+                _install_layout.append([
+                    psg.Checkbox(_serv, font=self.title_f, key=f"UPGRADE {_serv}"),
+                    psg.Button('Source Code', button_color=("Blue","White"), key=f'WEBREQUEST {self.services_config["services_params"][_serv]["source_code"]}', pad=(5, 0))
+                ])
+                _install_layout.append(
+                    [
+                        psg.Text(f'Description:', font=self.bold_f, pad=(30, 0)), 
+                        psg.Text(f'{self.services_config["services_params"][_serv]["short_description"]}', font=self.default_f)
+                    ]
+                )
+
+        if _upgrade_models_header:
+            _install_layout.append([psg.HorizontalSeparator(pad=(0, 20))])
+        
+        # Available Uninstalled Models
+        _available_models_header = False
+        for _k, _v in self.latest_services_config['services_params'].items():
+            if (self.user_config['models'] and _k in self.user_config['models'] ) or (_v["submodel"] == True) or (_k in self.tools_services):
+                continue
+            if not _available_models_header:
+                _available_models_header = True
+                _install_layout.append([psg.Text('Available AI Models', font=self.header_f)])
+            _install_layout.append([
+                psg.Checkbox(_k, font=self.title_f, key=f"SERVICE {_k}"),
+                psg.Button('Source Code', button_color=("Blue","White"), key=f'WEBREQUEST {self.latest_services_config["services_params"][_k]["source_code"]}', pad=(5, 0))
+            ])
+            _install_layout.append(
+                [
+                    psg.Text(f'Description:', font=self.bold_f, pad=(30, 0)), 
+                    psg.Text(f'{self.latest_services_config["services_params"][_k]["short_description"]}', font=self.default_f)
+                ]
+            )
+
+        if not _install_layout:
+            return [
+                [psg.Text('You are an absolute LEGEND!', font=self.header_f)],
+                [psg.Text('You have currently installed all DeSOTA Models!', font=self.default_f)],
+                [psg.Button('Check 4 Upgrades', button_color=("White","Black"), key="upgradeServConf")]
+            ]
+        return [
+            [psg.Column(_install_layout, size=(800,400), scrollable=True, key="_SCROLL_COL2_")],
+            [
+                psg.Button('Check 4 Upgrades', button_color=("White","Black"), key="upgradeServConf0"),
+                psg.Button('Start Instalation', key="startInstall"), 
+                psg.ProgressBar(100, orientation='h', expand_x=True, size=(20, 20),  key='installPBAR')
+            ]
+        ]
+
+    # TAB 3 - DeSOTA API Key
+    def construct_api_tab(self):
+        # No Models Installed
+        if not self.user_config['models']:
+            return [
+                [psg.Text('No Model Installed', font=self.header_f)],
+                [psg.Button('Install Models', key=f"TABMOVE0 {self.tab_keys[1]}")]
+            ]
+        # TODO . Discuss w/ Kris what about if people have models installed but need key authenticato for new models...
+        # Models Installed
+        else:
+            _strip_models = [ m.strip() for m, v in self.user_config['models'].items() if m not in self.tools_services]
+            _str_models = ",".join(_strip_models)
+            return [
+                [psg.Text('Create your API Key', font=self.header_f)],  # Title
+                [psg.Text('1. Log In DeSOTA ', font=self.default_f), psg.Text("here", tooltip='', enable_events=True, font=self.default_f, text_color="blue", key=f'WEBREQUEST http://129.152.27.36/index.php')],    # Log In DeSOTA
+                [psg.Text('2. Confirm you are logged in DeOTA API ', font=self.default_f), psg.Text("here", tooltip='', enable_events=True, font=self.default_f, text_color="blue", key=f'WEBREQUEST http://129.152.27.36/assistant/api.php')],    # Confirm Log In DeSOTA
+                [psg.Text('3. Get your DeSOTA API Key ', font=self.default_f), psg.Text("here", tooltip='', enable_events=True, font=self.default_f, text_color="blue", key=f'WEBREQUEST http://129.152.27.36/assistant/api.php?models_list={_str_models}')],    # SET API Key
+                [psg.Text('4. Insert DeSOTA API Key', font=self.default_f),psg.Input('',key='inpKey')],
+                [psg.Button('Set API Key', key="setAPIkey")]
+            ]
+
+
 
     ## Util Funks
     def get_user_theme(self):
@@ -239,189 +449,6 @@ class SGui():
         _app_last_v = self.latest_services_config["manager_params"][self.system]["version"]
         return (_app_curr_v != _app_last_v), _app_curr_v, _app_last_v
     
-    # TAB Constructors
-    # TAB 1 - Models Dashboard
-    def construct_monitor_models_tab(self):
-        # No Models Available
-        if not self.user_config['models']:
-            return [
-                [psg.Text('No Model Installed', font=self.header_f)],
-                [psg.Button('Install Models', key=f"TABMOVE {self.tab_keys[1]}")]
-            ]
-        # Models Available
-        else: # Inspited in https://stackoverflow.com/a/65778327 
-            _dashboard_layout = []
-            
-            # Tools Table
-            _tools_data = []
-            _tool_table_header = ["Tool", "Service Status", "Description"]
-            for _k, _v in self.user_config['models'].items():
-                if _k not in self.tools_services:
-                    continue
-                if not _tools_data:
-                    _dashboard_layout.append([psg.Text('Installed Desota Tools', font=self.header_f)])
-                _tool_params = self.services_config["services_params"][_k]
-                _tool_desc = _tool_params["short_description"]
-                _tool_status_path = os.path.join(user_path, _tool_params[self.system]["service_path"], _tool_params[self.system]["status"]) if _tool_params[self.system]["status"] else None
-                _tool_status = self.get_service_status(_tool_status_path).lower() if _tool_status_path else "Not Service"
-                _tools_data.append([_k, _tool_status, _tool_desc])
-            if _tools_data:
-                _dashboard_layout.append([psg.Table(
-                    values=_tools_data, 
-                    headings=_tool_table_header, 
-                    max_col_width=40,
-                    auto_size_columns=True,
-                    display_row_numbers=False,
-                    justification='center',
-                    num_rows=len(_tools_data),
-                    alternating_row_color='#000020',
-                    select_mode=psg.TABLE_SELECT_MODE_EXTENDED,
-                    enable_events=True,
-                    row_height=25,
-                    hide_vertical_scroll=True,
-                    key='tool_table'
-                )])
-                # _dashboard_layout.append([psg.Graph()]) #TODO
-            
-            # Models Table
-            _models_data = []
-            _model_table_header = ["AI Model", "Service Status", "Description"]
-            for _k, _v in self.user_config['models'].items():
-                if _k in self.tools_services:
-                    continue
-                if not _models_data:
-                    _dashboard_layout.append([psg.Text('Installed AI Models', font=self.header_f, pad=(0, (20,0)) if _tools_data else (0, (0,0)))])
-                _tool_params = self.services_config["services_params"][_k]
-                _tool_desc = _tool_params["short_description"]
-                _tool_status_path = os.path.join(user_path, _tool_params[self.system]["service_path"], _tool_params[self.system]["status"]) if _tool_params[self.system]["status"] else None
-                _tool_status = self.get_service_status(_tool_status_path).lower() if _tool_status_path else "Not a Service"
-                _models_data.append([_k, _tool_status, _tool_desc])
-            if _models_data:
-                _dashboard_layout.append([psg.Table(
-                    values=_models_data, 
-                    headings=_model_table_header, 
-                    max_col_width=40,
-                    auto_size_columns=True,
-                    display_row_numbers=False,
-                    justification='center',
-                    num_rows=len(_models_data),
-                    alternating_row_color='#000020',
-                    select_mode=psg.TABLE_SELECT_MODE_EXTENDED,
-                    enable_events=True,
-                    row_height=25,
-                    hide_vertical_scroll=True,
-                    key='model_table'
-                )])
-                # _dashboard_layout.append([psg.Graph()]) #TODO
-
-            # Handle Stop Manual Services
-            _started_malual_services = self.get_started_manual_services()
-            if _started_malual_services:
-                _disabled = False
-            else:
-                _disabled = True
-
-            return [
-                [psg.Column(_dashboard_layout, size=(800,435), scrollable=True)],
-                [
-                    psg.Button('Take a Peek', button_color=("Green","White"), key="openModelUI", pad=(5, 0)), 
-                    psg.Button('Source Code', button_color=("Blue","White"), key="openSource", pad=(5, 0)),
-                    psg.Button('Stop Manual Services', button_color=("Orange","White"), key="stopManualServices", disabled=_disabled,pad=(5, 0)),
-                    psg.Button('Uninstall', button_color=("Red","White"), key="startUninstall", pad=(5, 0))
-                ]
-            ]
-    
-    # TAB 2 - Models Instalation
-    def construct_install_tab(self):
-        _install_layout = []
-        # Desota Tools Services
-        _req_services_header = False
-        for _desota_serv, _cb_disabled in self.tools_services.items():
-            if not self.user_config['models'] or _desota_serv not in self.user_config['models']:
-                if not _req_services_header:
-                    _req_services_header = True
-                    _install_layout.append([psg.Text('Desota Tools Services', font=self.title_f)])
-                _install_layout.append([
-                    psg.Checkbox(_desota_serv, default=_cb_disabled, disabled=_cb_disabled, key=f"SERVICE {_desota_serv}"),
-                    psg.Button('Source Code', button_color=("Blue","White"), key=f'WEBREQUEST {self.services_config["services_params"][_desota_serv]["source_code"]}', pad=(5, 0))
-                ])
-                _install_layout.append(
-                    [psg.Text(f'Description:', font=self.bold_f, pad=(30, 0)), psg.Text(f'{self.services_config["services_params"][_desota_serv]["short_description"]}', font=self.default_f)]
-                )
-
-        if _req_services_header:
-            _install_layout.append([psg.HorizontalSeparator(pad=(0, 20))])
-
-        # TODO: Upgrade Models
-        _upgrade_models_header = False
-        for _serv, _params in self.latest_services_config['services_params'].items():
-            if _params["submodel"] == True:
-                continue
-            _latest_model_version = _params[self.system]['version']
-            if self.user_config['models'] and _serv in self.user_config['models'] and self.user_config['models'][_serv] != _latest_model_version:
-                if not _upgrade_models_header:
-                    _upgrade_models_header = True
-                    _install_layout.append([psg.Text('Upgradable Services Availabe', font=self.title_f)])
-                _install_layout.append([
-                    psg.Checkbox(_serv, key=f"UPGRADE {_serv}"),
-                    psg.Button('Source Code', button_color=("Blue","White"), key=f'WEBREQUEST {self.services_config["services_params"][_serv]["source_code"]}', pad=(5, 0))
-                ])
-                _install_layout.append(
-                    [psg.Text(f'Description:', font=self.bold_f, pad=(30, 0)), psg.Text(f'{self.services_config["services_params"][_serv]["short_description"]}', font=self.default_f)]
-                )
-
-        if _upgrade_models_header:
-            _install_layout.append([psg.HorizontalSeparator(pad=(0, 20))])
-        
-        # Available Uninstalled Models
-        _available_models_header = False
-        for _k, _v in self.latest_services_config['services_params'].items():
-            if (self.user_config['models'] and _k in self.user_config['models'] ) or (_v["submodel"] == True) or (_k in self.tools_services):
-                continue
-            if not _available_models_header:
-                _available_models_header = True
-                _install_layout.append([psg.Text('Available Models', font=self.title_f)])
-            _install_layout.append([
-                psg.Checkbox(_k, key=f"SERVICE {_k}"),
-                psg.Button('Source Code', button_color=("Blue","White"), key=f'WEBREQUEST {self.latest_services_config["services_params"][_k]["source_code"]}', pad=(5, 0))
-            ])
-            _install_layout.append(
-                [psg.Text(f'Description:', font=self.bold_f, pad=(30, 0)), psg.Text(f'{self.latest_services_config["services_params"][_k]["short_description"]}', font=self.default_f)]
-            )
-
-        if not _install_layout:
-            return [
-                [psg.Text('You are an absolute LEGEND!', font=self.header_f)],
-                [psg.Text('You have currently installed all DeSOTA Models!', font=self.default_f)],
-                [psg.Button('Check 4 Upgrades', key="upgradeServConf")]
-            ]
-        return [
-            [psg.Text('Select the services to be installed', font=self.header_f), psg.Button('Check 4 Upgrades', key="upgradeServConf0")],
-            [psg.Column(_install_layout, size=(800,400), scrollable=True)],
-            [psg.Button('Start Instalation', key="startInstall"), psg.ProgressBar(100, orientation='h', expand_x=True, size=(20, 20),  key='installPBAR')]
-        ]
-
-    # TAB 3 - DeSOTA API Key
-    def construct_api_tab(self):
-        # No Models Installed
-        if not self.user_config['models']:
-            return [
-                [psg.Text('No Model Installed', font=self.header_f)],
-                [psg.Button('Install Models', key=f"TABMOVE0 {self.tab_keys[1]}")]
-            ]
-        # TODO . Discuss w/ Kris what about if people have models installed but need key authenticato for new models...
-        # Models Installed
-        else:
-            _strip_models = [ m.strip() for m, v in self.user_config['models'].items() if m not in self.tools_services]
-            _str_models = ",".join(_strip_models)
-            return [
-                [psg.Text('Create your API Key', font=self.header_f)],  # Title
-                [psg.Text('1. Log In DeSOTA ', font=self.default_f), psg.Text("here", tooltip='', enable_events=True, font=self.default_f, text_color="blue", key=f'WEBREQUEST http://129.152.27.36/index.php')],    # Log In DeSOTA
-                [psg.Text('2. Confirm you are logged in DeOTA API ', font=self.default_f), psg.Text("here", tooltip='', enable_events=True, font=self.default_f, text_color="blue", key=f'WEBREQUEST http://129.152.27.36/assistant/api.php')],    # Confirm Log In DeSOTA
-                [psg.Text('3. Get your DeSOTA API Key ', font=self.default_f), psg.Text("here", tooltip='', enable_events=True, font=self.default_f, text_color="blue", key=f'WEBREQUEST http://129.152.27.36/assistant/api.php?models_list={_str_models}')],    # SET API Key
-                [psg.Text('4. Insert DeSOTA API Key', font=self.default_f),psg.Input('',key='inpKey')],
-                [psg.Button('Set API Key', key="setAPIkey")]
-            ]
 
 
     # Methods
@@ -570,7 +597,7 @@ class SGui():
                 self.open_url(_manager_issue_url)
             return "-ignore-"
 
-    # - Open Models Source Codes
+    # - Open Tools / Models Source Codes
     def open_models_sourcecode(self, values):
         self.set_installed_services()
         
@@ -588,7 +615,7 @@ class SGui():
 
         return "-done-"
         
-    # - Open Models UI
+    # - Open Tools / Models Interface
     def model_ui_handle(self, model_name):
         _res = None
         if "model_ui" in self.services_config["services_params"][model_name] and self.services_config["services_params"][model_name]["model_ui"]:
@@ -826,8 +853,31 @@ class SGui():
         os.remove(_target_tmp_stopper)
 
         return "-restart-"
+    
+    # - Window Bind Event
+    def column_set_size(self, element, size):
+        # retrieved from https://github.com/PySimpleGUI/PySimpleGUI/issues/4407#issuecomment-860863915
+        # Only work for sg.Column when `scrollable=True` or `size not (None, None)`
+        options = {'width':size[0], 'height':size[1]}
+        if element.Scrollable or element.Size!=(None, None):
+            element.Widget.canvas.configure(**options)
+        else:
+            element.Widget.pack_propagate(0)
+            element.set_size(size)
 
+    def window_configure(self, values):
+        print(f"\n\n[ window_configure ] - Memory Size: {self.root_size}\n[ window_configure ] - Current Size: {self.root.size}\n\n")
+        print(f"{self.root_size} != {self.root.size} : {self.root_size != self.root.size}")
+        if self.root_size != self.root.size:
+            _size_x, _size_y = self.root.size
 
+            # (865, 529)
+            self.column_set_size(self.root["_SCROLL_COL1_"], (_size_x-65, _size_y-129))
+            self.column_set_size(self.root["_SCROLL_COL2_"], (_size_x-65, _size_y-129))
+
+            self.root_size = self.root.size
+    
+    
     # Get Class Method From Event and Run Method
     def main_loop(self, ignore_event=[], timeout=None):
         try:
@@ -862,6 +912,12 @@ class SGui():
             self.set_app_status(0)
             self.root.close()
             return "-close-"
+        
+        # if _event == psg.TITLEBAR_MAXIMIZE_KEY:
+        #     if not self.root.maximized:
+        #         self.root.maximize()
+        #     else:
+        #         self.root.normal()
         
         elif _event == psg.TIMEOUT_KEY:
             return "-timeout-"
