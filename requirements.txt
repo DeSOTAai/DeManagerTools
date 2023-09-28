@@ -1,5 +1,5 @@
-PySimpleGUI
+PySimpleGUI>=4.60
 psgtray
-pyinstaller
+cx_Freeze
 pyyaml
 requests

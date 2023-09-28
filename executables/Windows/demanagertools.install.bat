@@ -8,7 +8,7 @@ set manager_git_branch=main
 set desota_root_path=%UserProfile%\Desota
 set manager_path_install=%desota_root_path%\DeManagerTools
 :: - Model Execs
-set manager_start="%HOMEDRIVE%%HOMEPATH%\Desota\DeManagerTools\dist\Desota - Manager Tools\Desota - Manager Tools.exe"
+set manager_start="%UserProfile%\Desota\DeManagerTools\dist\Desota - Manager Tools.exe"
 set manager_uninstall=%manager_path_install%\executables\Windows\demanagertools.uninstall.bat
 
 
@@ -145,7 +145,7 @@ IF %PROCESSOR_ARCHITECTURE%==x86 powershell -command "Invoke-WebRequest -Uri %mi
 
 
 :: Create/Activate Conda Virtual Environment
-ECHO %info_h2%Creating MiniConda Environment...%ansi_end% 
+ECHO %info_h2%Creating MiniConda Environment...%ansi_end%
 call %UserProfile%\Desota\Portables\miniconda3\condabin\conda create --prefix ./env python=3.11 -y  > NUL 2>NUL
 call %UserProfile%\Desota\Portables\miniconda3\condabin\conda activate ./env  > NUL 2>NUL
 call %UserProfile%\Desota\Portables\miniconda3\condabin\conda install pip -y > NUL 2>NUL
@@ -153,10 +153,17 @@ call %UserProfile%\Desota\Portables\miniconda3\condabin\conda install pip -y > N
 :: Install required Libraries
 ECHO %info_h1%Step 6/9 - Install Project Packages%ansi_end%
 call pip install -r requirements.txt  > NUL 2>NUL
+pip freeze
 
 :: Create App EXE
 ECHO %info_h1%Step 7/9 - Create APP .EXE%ansi_end%
-call pyinstaller -D --noconsole -n "Desota - Manager Tools" -i "%manager_path_install%\Assets\icon.ico" %manager_path_install%\app.py > NUL 2>NUL
+
+:: If you're working on this, clearly you know more than me!
+:: inspired in https://pythonassets.com/posts/create-executable-file-with-pyinstaller-cx_freeze-py2exe/
+:: doc: https://cx-freeze.readthedocs.io/en/stable/script.html
+cxfreeze -c app.py --base-name=Win32GUI --target-dir dist --target-name="Desota - Manager Tools" --icon=icon.ico > NUL
+::debug
+::cxfreeze -c app.py --target-dir dist --target-name="Desota - Manager Tools" --icon=icon.ico > NUL 
 
 :: Dectivate Conda Virtual Environment
 call %UserProfile%\Desota\Portables\miniconda3\condabin\conda deactivate  > NUL 2>NUL
@@ -166,7 +173,7 @@ ECHO %info_h2%Creating APP Desktop Shortcut...%ansi_end%
 echo Set oWS = WScript.CreateObject("WScript.Shell") > CreateShortcut.vbs
 echo sLinkFile = "%HOMEDRIVE%%HOMEPATH%\Desktop\Desota - Manager Tools.lnk" >> CreateShortcut.vbs
 echo Set oLink = oWS.CreateShortcut(sLinkFile) >> CreateShortcut.vbs
-echo oLink.TargetPath = "%HOMEDRIVE%%HOMEPATH%\Desota\DeManagerTools\dist\Desota - Manager Tools\Desota - Manager Tools.exe"  >> CreateShortcut.vbs
+echo oLink.TargetPath = %manager_start%  >> CreateShortcut.vbs
 echo oLink.Save >> CreateShortcut.vbs
 cscript CreateShortcut.vbs  > NUL 2>NUL
 del CreateShortcut.vbs  > NUL 2>NUL
@@ -182,10 +189,7 @@ IF NOT EXIST %desota_root_path%\Configs\user.config.yaml (
 
 
 ECHO %info_h1%Step 9/9 - End of Installer%ansi_end%
-IF EXIST %start_req_services% (
-    ECHO %info_h2%Starting DeSOTA Services that run constantly...%ansi_end%
-    call %start_req_services%
-)
+
 ECHO %sucess%Starting DeSOTA - Manager Tools%ansi_end%
 ECHO %info_h1%You can close this window!%ansi_end%
 call %manager_start%
