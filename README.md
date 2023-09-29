@@ -1,7 +1,7 @@
 ![DeSOTA Welcome](Assets/Logo_DeSota.png)
 
 <details open>
-   <summary><h1>About DeManagerTools</h1></summary>
+   <summary><h1>DeManagerTools Overview</h1></summary>
 
 This repository purpose is:
  - Manage DeSOTA [services]((https://github.com/DeSOTAai/DeRunner/blob/main/Assets/latest_services.config.yaml)):
@@ -10,6 +10,8 @@ This repository purpose is:
     - Uninstall.
  - Connect with AI Models multiple dedicated User Interfaces;
  - Create DeSOTA API Key.
+
+</details>
 
 <details open>
    <summary><h1>Instalation</h1></summary>
@@ -22,9 +24,12 @@ This repository purpose is:
 1. Uncompress File
 2. Run .BAT file
 </details>
+
+<details open>
+   <summary><h1>About DeManagerTools</h1></summary>
  
 <details open>
-   <summary><h2>Install / Upgrade Servicesand Tools</h2></summary>
+   <summary><h2>Install / Upgrade DeSOTA Models and Tools</h2></summary>
 
 ![Install Tab](Assets/readme_files/readme_install_tab.png)
 
@@ -43,7 +48,7 @@ This repository purpose is:
 </details>
 
 <details open>
-   <summary><h2>Models Dashboard</h2></summary>
+   <summary><h2>Models / Tools Dashboard</h2></summary>
 
  ![Dashboard Tab](Assets/readme_files/readme_dashboard_tab.png)
 
