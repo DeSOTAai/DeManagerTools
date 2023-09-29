@@ -1326,7 +1326,13 @@ def main():
     sgui = SGui()
     # Get APP Status - Prevent Re-Open
     if sgui.get_app_status() == "1":
-        return 0
+        _app_upgrade = psg.popup_yes_no(
+            f"This program is allready open or has not been properly closed!\nDo you wish to continue?",
+            title="DeSOTA - Manager Tools",
+            icon = sgui.icon,
+        )
+        if _app_upgrade != "Yes":
+            return 0
     sgui.set_app_status(1)
     _tab_selected = False
     _mem_open_tab = sgui.current_tab
