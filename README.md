@@ -3,12 +3,12 @@
 <details open>
    <summary><h1>DeManagerTools Overview</h1></summary>
 
-This repository purpose is:
- - Manage DeSOTA [services]((https://github.com/DeSOTAai/DeRunner/blob/main/Assets/latest_services.config.yaml)):
+DeManagerTools consists on a GUI to:
+ - Manage `DeSOTA Tools` (eg. [DeRunner](https://github.com/desotaai/derunner), [DeUrlCruncher](https://github.com/franciscomvargas/DeUrlCruncher)) and `DeSOTA AI Models` (eg. [DeScraper](https://github.com/franciscomvargas/descraper), [NeuralQA](https://github.com/franciscomvargas/neuralqa)):
     - Install;
     - Upgrade;
     - Uninstall.
- - Connect with AI Models multiple dedicated User Interfaces;
+ - Connect to multiple `DeSOTA Tools` / `DeSOTA AI Models` dedicated User Interfaces;
  - Create DeSOTA API Key.
 
 </details>
@@ -35,14 +35,14 @@ This repository purpose is:
 
  ### Sections
 
-- **Available Tools**: This section has `DeSOTA Tools` (eg. [DeRunner](https://github.com/desotaai/derunner), [DeUrlCruncher](https://github.com/franciscomvargas/DeUrlCruncher));
-- **Available AI Models** - This section has the latest version of uninstalled `DeSOTA AI Models` (eg. [DeScraper](https://github.com/franciscomvargas/descraper), [NeuralQA](https://github.com/franciscomvargas/neuralqa));
-- **Available Upgrades** - This section has the upgrades available for `DeSOTA Tools` and `DeSOTA AI Models`. 
+- **Available Tools**: This section have the latest version of uninstalled `DeSOTA Tools`;
+- **Available AI Models** - This section have the latest version of uninstalled `DeSOTA AI Models`;
+- **Available Upgrades** - This section have the upgrades available for `DeSOTA Tools` and `DeSOTA AI Models`. 
 
  ### Buttons
 
  - **Source Code**: Open in the browser the `DeSOTA AI Model` / `DeSOTA Tool` repository;
- - **Check 4 Upgrades**: Update [DeSOTA Services/Tools Params](#desota-servicestools-params).
+ - **Check 4 Upgrades**: Update [DeSOTA Services/Tools Params](#desota-services--tools-params).
  - **Start Instalation**: Install selected `DeSOTA Tools` / `DeSOTA AI Models`.
 
 </details>
@@ -54,8 +54,8 @@ This repository purpose is:
 
  ### Sections
 
-- **Installed Tools**: Monitor the installed `DeSOTA Tools`;
-- **Installed AI Models** - Monitor the installed  `DeSOTA AI Models`;
+- **Installed Tools**: This section have the installed `DeSOTA Tools`;
+- **Installed AI Models** - This section have the installed  `DeSOTA AI Models`;
 
  ### Buttons
 
@@ -76,15 +76,20 @@ This repository purpose is:
 
   - Under development...
 
-  ## Upgrade DeManagerTools
+</details>
+
+<details open>
+    <summary><h2>Upgrade DeManagerTools</h2></summary>
 
   If new version of the app is available you'll be prompted with a pop-up similar to:
 
   ![Upgrade APP](Assets/readme_files/upgrade_app.PNG)
 
- ## DeSOTA Services/Tools Params
+</details>
+
+ ## DeSOTA Services / Tools Params
 
   The latest DeSOTA Services/Tools Params are available [here](https://github.com/DeSOTAai/DeRunner/blob/main/Assets/latest_services.config.yaml).
   
-</details>
+
 </details>
