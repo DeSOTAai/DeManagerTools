@@ -222,15 +222,19 @@ class SGui():
         os.remove(_target_status_res)
         return _status
 
-    def set_installed_services(self):
+    def set_installed_services(self, user_tools=None, user_models=None):
         self.user_tools = []
         self.user_models = []
-        if self.user_config['models']:
-            for _user_service, _v in self.user_config['models'].items():
-                if _user_service in self.tools_services:
-                    self.user_tools.append(_user_service)
-                else:
-                    self.user_models.append(_user_service)
+        if not ( (user_tools and user_models) or (isinstance(user_tools, list) and isinstance(user_models, list)) ):
+            if self.user_config['models']:
+                for _user_service, _v in self.user_config['models'].items():
+                    if _user_service in self.tools_services:
+                        self.user_tools.append(_user_service)
+                    else:
+                        self.user_models.append(_user_service)
+            return
+        self.user_tools += user_tools
+        self.user_models += user_models
 
     def get_started_manual_services(self):
         if os.path.isfile(self.started_manual_services_file):
@@ -303,6 +307,7 @@ class SGui():
     # TAB 1 - Models Dashboard
     def get_tools_data(self, search_filter=None):
         _tools_data = []
+        _tools = []
         for _k, _v in self.user_config['models'].items():
             if _k not in self.tools_services:
                 continue
@@ -313,12 +318,15 @@ class SGui():
             if search_filter:
                 if search_filter.lower() in _k.lower() or search_filter.lower() in _tool_desc.lower():
                     _tools_data.append([_k, _tool_status, _tool_desc])
+                    _tools.append(_k)
             else:
                 _tools_data.append([_k, _tool_status, _tool_desc])
+                _tools.append(_k)
             
-        return _tools_data
+        return _tools_data, _tools
     def get_models_data(self, search_filter=None):
         _models_data = []
+        _models = []
         for _k, _v in self.user_config['models'].items():
             if _k in self.tools_services:
                 continue
@@ -329,9 +337,11 @@ class SGui():
             if search_filter:
                 if search_filter.lower() in _k.lower() or search_filter.lower() in _tool_desc.lower():
                     _models_data.append([_k, _tool_status, _tool_desc])
+                    _models.append(_k)
             else:
                 _models_data.append([_k, _tool_status, _tool_desc])
-        return _models_data
+                _models.append(_k)
+        return _models_data, _models
     def construct_monitor_models_tab(self):
         # No Models Available
         if not self.user_config['models']:
@@ -345,7 +355,7 @@ class SGui():
             self.exist_dash = True
             _dashboard_layout = []
             # Tools Table
-            _tools_data = self.get_tools_data()
+            _tools_data, _tools = self.get_tools_data()
             if _tools_data:
                 _tool_table_header = ["Tool", "Service Status", "Description"]
                 _dashboard_layout.append([psg.Text('Installed Tools', font=self.header_f)])
@@ -367,7 +377,7 @@ class SGui():
                 # _dashboard_layout.append([psg.Graph()]) #TODO
             
             # Models Table
-            _models_data = self.get_models_data()
+            _models_data, _models = self.get_models_data()
             if _models_data:
                 _model_table_header = ["AI Model", "Service Status", "Description"]
                 _dashboard_layout.append([psg.Text('Installed AI Models', font=self.header_f, pad=(0, (20,0)) if _models_data else (0, (0,0)))])
@@ -387,6 +397,8 @@ class SGui():
                     key='model_table'
                 )])
                 # _dashboard_layout.append([psg.Graph()]) #TODO
+
+            self.set_installed_services(user_tools=_tools, user_models=_models)
 
             # Handle Stop Manual Services
             _started_malual_services = self.get_started_manual_services()
@@ -905,8 +917,6 @@ class SGui():
 
     # - Open Tools / Models Source Codes
     def open_models_sourcecode(self, values):
-        self.set_installed_services()
-        
         if "tool_table" in values:
             for _row in values["tool_table"]:
                 _model_name = self.user_tools[_row]
@@ -1031,8 +1041,6 @@ class SGui():
             
         return _res
     def open_models_ui(self, values):
-        self.set_installed_services()
-
         _model_ui_ret = "-done-"
         if "tool_table" in values:
             for _row in values["tool_table"]:
@@ -1052,7 +1060,6 @@ class SGui():
 
     # - Uninstall Service
     def uninstall_services(self, values):
-        self.set_installed_services()
         _models_2_uninstall = []
         if "tool_table" in values:
             for _row in values["tool_table"]:
@@ -1120,7 +1127,7 @@ class SGui():
             
 
         self.set_installed_services()
-        _ok_res = psg.popup("Uninstalation Completed!\n\nThe APP will restart!\n\nPress Ok to proceed", title="", icon=self.icon)
+        _ok_res = psg.popup("Uninstalation Completed!\n\nThe APP need to restart!\nPress Ok to proceed", title="", icon=self.icon)
         if not _ok_res:
             return "-ignore-"
         
@@ -1193,18 +1200,23 @@ class SGui():
 
     def search_dash(self, values):
         _search_filter = values['searchDash']
-
+        self.tools_selected = []
+        self.tools_click = False
+        self.models_selected = []
+        self.models_click = False
         if _search_filter.strip() != "":
             self.mem_dash_search = _search_filter.strip()
-            _tools_data = self.get_tools_data(search_filter=_search_filter)
-            _models_data = self.get_models_data(search_filter=_search_filter)
+            _tools_data, _tools = self.get_tools_data(search_filter=_search_filter)
+            _models_data, _models = self.get_models_data(search_filter=_search_filter)
         else:
             self.mem_dash_search = "Search"
-            _tools_data = self.get_tools_data()
-            _models_data = self.get_models_data()
+            _tools_data, _tools = self.get_tools_data()
+            _models_data, _models = self.get_models_data()
 
         self.root['tool_table'].update(values=_tools_data)
         self.root['model_table'].update(values=_models_data)
+
+        self.set_installed_services(user_tools=_tools, user_models=_models)
 
         return "-done-"
     
