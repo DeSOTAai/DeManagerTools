@@ -1,7 +1,7 @@
+![DeSOTA Welcome](Assets/Logo_DeSota.png)
+
 <details open>
    <summary><h1>About DeManagerTools</h1></summary>
-
-![DeSOTA Welcome](Assets/Logo_DeSota.png)
 
 This repository purpose is:
  - Manage DeSOTA [services]((https://github.com/DeSOTAai/DeRunner/blob/main/Assets/latest_services.config.yaml)):
@@ -36,6 +36,7 @@ This repository purpose is:
 
  ### Buttons
 
+ - **Source Code**: Open in the browser the `DeSOTA AI Model` / `DeSOTA Tool` repository;
  - **Check 4 Upgrades**: Update [DeSOTA Services/Tools Params](#desota-servicestools-params).
  - **Start Instalation**: Install selected `DeSOTA Tools` / `DeSOTA AI Models`.
 
@@ -57,7 +58,7 @@ This repository purpose is:
    - **Note**: If service of model / tool <ins>don't run constantly</ins> is required to stop service after closing the UI:
       - by pressing the button `Stop Manual Services`
       - by closing the APP
- - **Source Code**: Open in the browser the selected services repository;
+ - **Source Code**: Open in the browser the selected `DeSOTA AI Models` / `DeSOTA Tools` repository;
  - **Stop Manual Services**: Stop all started `DeSOTA AI Models` / `DeSOTA Tools` that <ins>don't run constantly</ins> after `Take a Peek`;
  - **Uninstall**: Uninstall selected `DeSOTA Tools` / `DeSOTA AI Models`.
 
