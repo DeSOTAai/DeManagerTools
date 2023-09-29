@@ -1260,10 +1260,12 @@ class SGui():
     
     # - Search Install
     def focus_in_search_install(self, values):
-        print("DEBUG:", "Install Search Focus")
+        if DEBUG:
+            print("DEBUG:", "Install Search Focus")
         self.root["searchInstall"].update('')
     def focus_out_search_install(self, values):
-        print("DEBUG:", "Install Search Focus Out")
+        if DEBUG:
+            print("DEBUG:", "Install Search Focus Out")
         self.root["searchInstall"].update(self.mem_install_search if self.mem_install_search else 'Search')
 
     def search_install(self, values):
@@ -1340,8 +1342,9 @@ class SGui():
             return "-ignore-"
         
         #access all the values and if selected add them to a string
-        print(f" [ DEBUG ] -> event = {_event}")
-        print(f" [ DEBUG ] -> values = {_values}")
+        if DEBUG and _event != "windowConfigure":
+            print(f" [ DEBUG ] -> event = {_event}")
+            print(f" [ DEBUG ] -> values = {_values}")
 
         try:    # Inspired in https://stackoverflow.com/questions/7936572/python-call-a-function-from-string-name
             # Analize Event
@@ -1395,7 +1398,8 @@ def main():
             sgui.move_2_tab(_mem_open_tab)
         print('*'*80)
         _sgui_res = sgui.main_loop()
-        print(f" [ DEBUG ] -> main_loop res = {_sgui_res}")
+        if DEBUG:
+            print(f" [ DEBUG ] -> main_loop res = {_sgui_res}")
         if _sgui_res == "-ignore-":
             continue
         elif _sgui_res == "-restart-":
