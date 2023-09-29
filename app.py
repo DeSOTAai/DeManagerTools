@@ -452,7 +452,7 @@ class SGui():
                     self.install_configs[tab][str(cycle)][_key_id] = {}
                     
                 self.install_configs[tab][str(cycle)][_key_id] = {
-                    "event": key,
+                    "key": key,
                     "visibility": visibility,
                 }
             except Exception as e:
@@ -478,19 +478,18 @@ class SGui():
                     print("ERROF: install_configs[tab] = ", json.dumps(self.install_configs[tab], indent=2))
                     print("Exception:", e)
 
-
         return visibility
 
     def get_install_tools(self, get_layout=True, search_filter=None):
-        #TODO: Evolute from self.just_started into get_layout for init and the rest is only get visibility of elements
+        # Implementing: Evolute from self.just_started into get_layout for init and the rest is only get visibility of elements
         '''Available Uninstalled Tools'''
         _install_tools = []
         _req_services_header = False
-        if self.just_started:
+        if get_layout:
             _at_header_event = self.create_elem_key('install_header_at', ("at", 0))
         else:
             if "0" in self.install_configs["at"] and "install_header_at" in self.install_configs["at"]["0"]:
-                _at_header_event = self.install_configs["at"]["0"]["install_header_at"]["event"]
+                _at_header_event = self.install_configs["at"]["0"]["install_header_at"]["key"]
             else:
                 return _install_tools       
              
@@ -500,52 +499,60 @@ class SGui():
                 _source = self.services_config["services_params"][_desota_serv]["source_code"]
                 
                 if not search_filter or (search_filter.lower() in _desota_serv.lower() or search_filter.lower() in _desc):
-                    if self.just_started:
+                    if get_layout:
                         _at_serv_event = self.create_elem_key(f"SERVICE {_desota_serv}", ("at", count))
                         _at_req_event = self.create_elem_key(f'WEBREQUEST {_source}', ("at", count))
                         _at_desc1_event = self.create_elem_key('install_desc_head_at', ("at", count))
                         _at_desc2_event = self.create_elem_key('install_desc_body_at', ("at", count))
                     else:
-                        _at_serv_event = self.install_configs["at"][str(count)]["SERVICE"]["event"]
-                        _at_req_event = self.install_configs["at"][str(count)]["WEBREQUEST"]["event"]
-                        _at_desc1_event = self.install_configs["at"][str(count)]["install_desc_head_at"]["event"]
-                        _at_desc2_event = self.install_configs["at"][str(count)]["install_desc_body_at"]["event"]
+                        _at_serv_event = self.install_configs["at"][str(count)]["SERVICE"]["key"]
+                        _at_req_event = self.install_configs["at"][str(count)]["WEBREQUEST"]["key"]
+                        _at_desc1_event = self.install_configs["at"][str(count)]["install_desc_head_at"]["key"]
+                        _at_desc2_event = self.install_configs["at"][str(count)]["install_desc_body_at"]["key"]
 
 
                     if not _req_services_header:
                         _req_services_header = True
+                        if get_layout:
+                            _install_tools.append([
+                                psg.Text(
+                                    'Available Tools', 
+                                    font=self.header_f, 
+                                    key=_at_header_event, 
+                                    visible=self.set_elem_vis(_at_header_event, ("at", 0), True)
+                                )   
+                            ])
+                        else:
+                            self.set_elem_vis(_at_header_event, ("at", 0), True)
+                    if get_layout:
                         _install_tools.append([
-                            psg.Text(
-                                'Available Tools', 
-                                font=self.header_f, 
-                                key=_at_header_event, 
-                                visible=self.set_elem_vis(_at_header_event, ("at", 0), True)
-                            )   
+                            psg.Checkbox(_desota_serv, font=self.title_f, default=_cb_disabled, disabled=_cb_disabled, key=_at_serv_event, visible=self.set_elem_vis(_at_serv_event, ("at", count), True)),
+                            psg.Button('Source Code', button_color=("Blue","White"), key=_at_req_event, visible=self.set_elem_vis(_at_req_event, ("at", count), True), pad=(5, 0))
                         ])
-                    _install_tools.append([
-                        psg.Checkbox(_desota_serv, font=self.title_f, default=_cb_disabled, disabled=_cb_disabled, key=_at_serv_event, visible=self.set_elem_vis(_at_serv_event, ("at", count), True)),
-                        psg.Button('Source Code', button_color=("Blue","White"), key=_at_req_event, visible=self.set_elem_vis(_at_req_event, ("at", count), True), pad=(5, 0))
-                    ])
-                    _install_tools.append(
-                        [
-                            psg.Text(f'Description:', font=self.bold_f, pad=(30, 0), key=_at_desc1_event, visible=self.set_elem_vis(_at_desc1_event, ("at", count), True)), 
-                            psg.Text(f'{_desc}', font=self.default_f, key=_at_desc2_event, visible=self.set_elem_vis(_at_desc2_event, ("at", count), True))
-                        ]
-                    )
+                        _install_tools.append(
+                            [
+                                psg.Text(f'Description:', font=self.bold_f, pad=(30, 0), key=_at_desc1_event, visible=self.set_elem_vis(_at_desc1_event, ("at", count), True)), 
+                                psg.Text(f'{_desc}', font=self.default_f, key=_at_desc2_event, visible=self.set_elem_vis(_at_desc2_event, ("at", count), True))
+                            ]
+                        )
+                    else:
+                        self.set_elem_vis([_at_serv_event, _at_req_event, _at_desc1_event, _at_desc2_event], ("at", count), True)
                 else:
-                    _at_serv_event = self.install_configs["at"][str(count)]["SERVICE"]["event"]
-                    _at_req_event = self.install_configs["at"][str(count)]["WEBREQUEST"]["event"]
-                    _at_desc1_event = self.install_configs["at"][str(count)]["install_desc_head_at"]["event"]
-                    _at_desc2_event = self.install_configs["at"][str(count)]["install_desc_body_at"]["event"]
+                    _at_serv_event = self.install_configs["at"][str(count)]["SERVICE"]["key"]
+                    _at_req_event = self.install_configs["at"][str(count)]["WEBREQUEST"]["key"]
+                    _at_desc1_event = self.install_configs["at"][str(count)]["install_desc_head_at"]["key"]
+                    _at_desc2_event = self.install_configs["at"][str(count)]["install_desc_body_at"]["key"]
                     self.set_elem_vis([_at_serv_event, _at_req_event, _at_desc1_event, _at_desc2_event], ("at", count), False)
 
         if not _req_services_header:
-            if _at_header_event in self.created_elems and self.just_started:
+            if _at_header_event in self.created_elems and get_layout:
                 self.created_elems.pop(_at_header_event)
 
-            if not self.just_started:
+            if not get_layout:
                 self.set_elem_vis(_at_header_event, ("at", 0), False)
 
+        if not get_layout:
+            return True if _req_services_header else False
         return _install_tools
     def get_upgrade_models(self, get_layout=True, search_filter=None):
         #TODO: Evolute from self.just_started inoy get_layout for init and the rest is only get visibility of elements
@@ -553,11 +560,11 @@ class SGui():
         _upgrade_models = []
         _upgrade_models_header = False
 
-        if self.just_started:
+        if get_layout:
             _up_header_event = self.create_elem_key('install_header_up', ("up", 0))
         else:
             if "0" in self.install_configs["up"] and "install_header_up" in self.install_configs["up"]["0"]:
-                _up_header_event = self.install_configs["up"]["0"]["install_header_up"]["event"]
+                _up_header_event = self.install_configs["up"]["0"]["install_header_up"]["key"]
             else:
                 return _upgrade_models       
 
@@ -570,51 +577,60 @@ class SGui():
                 _desc = self.latest_services_config["services_params"][_serv]["short_description"]
                 _source = self.latest_services_config["services_params"][_serv]["source_code"]
                 if not search_filter or (search_filter.lower() in _serv.lower() or search_filter.lower() in _desc):
-                    if self.just_started:
+                    if get_layout:
                         _up_upg_event = self.create_elem_key(f"SERVICE {_serv}", ("up", count))
                         _up_req_event = self.create_elem_key(f'WEBREQUEST {_source}', ("up", count))
                         _up_desc1_event = self.create_elem_key('install_desc_head_up', ("up", count))
                         _up_desc2_event = self.create_elem_key('install_desc_body_up', ("up", count))
                     else:
-                        _up_upg_event = self.install_configs["up"][str(count)]["SERVICE"]["event"]
-                        _up_req_event = self.install_configs["up"][str(count)]["WEBREQUEST"]["event"]
-                        _up_desc1_event = self.install_configs["up"][str(count)]["install_desc_head_up"]["event"]
-                        _up_desc2_event = self.install_configs["up"][str(count)]["install_desc_body_up"]["event"]
+                        _up_upg_event = self.install_configs["up"][str(count)]["SERVICE"]["key"]
+                        _up_req_event = self.install_configs["up"][str(count)]["WEBREQUEST"]["key"]
+                        _up_desc1_event = self.install_configs["up"][str(count)]["install_desc_head_up"]["key"]
+                        _up_desc2_event = self.install_configs["up"][str(count)]["install_desc_body_up"]["key"]
 
 
                     if not _upgrade_models_header:
                         _upgrade_models_header = True
+                        if get_layout:
+                            _upgrade_models.append([
+                                psg.Text('Availabe Upgrades', 
+                                        font=self.header_f, 
+                                        key=_up_header_event, 
+                                        visible=self.set_elem_vis(_up_header_event, ("up", 0), True)
+                                )
+                            ])
+                        else:
+                            self.set_elem_vis(_up_header_event, ("up", 0), True)
+                    
+                    if get_layout:
                         _upgrade_models.append([
-                            psg.Text('Availabe Upgrades', 
-                                     font=self.header_f, 
-                                     key=_up_header_event, 
-                                     visible=self.set_elem_vis(_up_header_event, ("up", 0), True)
-                            )
+                            psg.Checkbox(_serv, font=self.title_f, key=_up_upg_event, visible=self.set_elem_vis(_up_upg_event, ("up", count), True)),
+                            psg.Button('Source Code', button_color=("Blue","White"), key=_up_req_event, visible=self.set_elem_vis(_up_req_event, ("up", count), True), pad=(5, 0))
                         ])
-                    _upgrade_models.append([
-                        psg.Checkbox(_serv, font=self.title_f, key=_up_upg_event, visible=self.set_elem_vis(_up_upg_event, ("up", count), True)),
-                        psg.Button('Source Code', button_color=("Blue","White"), key=_up_req_event, visible=self.set_elem_vis(_up_req_event, ("up", count), True), pad=(5, 0))
-                    ])
-                    _upgrade_models.append(
+                        _upgrade_models.append(
                         [
                             psg.Text(f'Description:', font=self.bold_f, pad=(30, 0), key=_up_desc1_event, visible=self.set_elem_vis(_up_desc1_event, ("up", count), True)), 
                             psg.Text(f'{_desc}', font=self.default_f, key=_up_desc2_event, visible=self.set_elem_vis(_up_desc2_event, ("up", count), True))
                         ]
                     )
+                    else:
+                        self.set_elem_vis([_up_upg_event, _up_req_event, _up_desc1_event, _up_desc2_event], ("up", count), True)
                 else:
-                    _up_upg_event = self.install_configs["up"][str(count)]["SERVICE"]["event"]
-                    _up_req_event = self.install_configs["up"][str(count)]["WEBREQUEST"]["event"]
-                    _up_desc1_event = self.install_configs["up"][str(count)]["install_desc_head_up"]["event"]
-                    _up_desc2_event = self.install_configs["up"][str(count)]["install_desc_body_up"]["event"]
+                    _up_upg_event = self.install_configs["up"][str(count)]["SERVICE"]["key"]
+                    _up_req_event = self.install_configs["up"][str(count)]["WEBREQUEST"]["key"]
+                    _up_desc1_event = self.install_configs["up"][str(count)]["install_desc_head_up"]["key"]
+                    _up_desc2_event = self.install_configs["up"][str(count)]["install_desc_body_up"]["key"]
                     self.set_elem_vis([_up_upg_event, _up_req_event, _up_desc1_event, _up_desc2_event], ("up", count), False)
         
         if not _upgrade_models_header:
-            if _up_header_event in self.created_elems and self.just_started:
+            if _up_header_event in self.created_elems and get_layout:
                 self.created_elems.pop(_up_header_event)
 
-            if not self.just_started:
+            if not get_layout:
                 self.set_elem_vis(_up_header_event, ("up", 0), False)
 
+        if not get_layout:
+            return True if _upgrade_models_header else False
         return _upgrade_models
     def get_install_models(self, get_layout=True, search_filter=None):
         #TODO: Evolute from self.just_started into get_layout for init and the rest is only get visibility of elements
@@ -622,11 +638,11 @@ class SGui():
         _install_models = []
         _available_models_header = False
         
-        if self.just_started:
+        if get_layout:
             _am_header_event = self.create_elem_key('install_header_am', ("am", 0))
         else:
             if "0" in self.install_configs["am"] and "install_header_am" in self.install_configs["am"]["0"]:
-                _am_header_event = self.install_configs["am"]["0"]["install_header_am"]["event"]
+                _am_header_event = self.install_configs["am"]["0"]["install_header_am"]["key"]
             else:
                 return _install_models  
 
@@ -637,86 +653,108 @@ class SGui():
             _source = self.latest_services_config["services_params"][_k]["source_code"]
 
             if not search_filter or (search_filter.lower() in _k.lower() or search_filter.lower() in _desc):
-                if self.just_started:
+                if get_layout:
                     _am_serv_event = self.create_elem_key(f"SERVICE {_k}", ("am", count))
                     _am_req_event = self.create_elem_key(f'WEBREQUEST {_source}', ("am", count))
                     _am_desc1_event = self.create_elem_key('install_desc_head_am', ("am", count))
                     _am_desc2_event = self.create_elem_key('install_desc_body_am', ("am", count))
                 else:
-                    _am_serv_event = self.install_configs["am"][str(count)]["SERVICE"]["event"]
-                    _am_req_event = self.install_configs["am"][str(count)]["WEBREQUEST"]["event"]
-                    _am_desc1_event = self.install_configs["am"][str(count)]["install_desc_head_am"]["event"]
-                    _am_desc2_event = self.install_configs["am"][str(count)]["install_desc_body_am"]["event"]
+                    _am_serv_event = self.install_configs["am"][str(count)]["SERVICE"]["key"]
+                    _am_req_event = self.install_configs["am"][str(count)]["WEBREQUEST"]["key"]
+                    _am_desc1_event = self.install_configs["am"][str(count)]["install_desc_head_am"]["key"]
+                    _am_desc2_event = self.install_configs["am"][str(count)]["install_desc_body_am"]["key"]
 
 
                 if not _available_models_header:
                     _available_models_header = True
+                    if get_layout:
+                        _install_models.append([
+                            psg.Text(
+                                'Available AI Models', 
+                                font=self.header_f, 
+                                key=_am_header_event, 
+                                visible=self.set_elem_vis(_am_header_event, ("am", 0), True)
+                            )
+                        ])
+                    else:
+                        self.set_elem_vis(_am_header_event, ("am", 0), True)
+                
+                if get_layout:
                     _install_models.append([
-                        psg.Text(
-                            'Available AI Models', 
-                            font=self.header_f, 
-                            key=_am_header_event, 
-                            visible=self.set_elem_vis(_am_header_event, ("am", 0), True)
-                        )
+                        psg.Checkbox(_k, font=self.title_f, key=_am_serv_event, visible=self.set_elem_vis(_am_serv_event, ("am", count), True)),
+                        psg.Button('Source Code', button_color=("Blue","White"), key=_am_req_event, visible=self.set_elem_vis(_am_req_event, ("am", count), True), pad=(5, 0))
                     ])
-                _install_models.append([
-                    psg.Checkbox(_k, font=self.title_f, key=_am_serv_event, visible=self.set_elem_vis(_am_serv_event, ("am", count), True)),
-                    psg.Button('Source Code', button_color=("Blue","White"), key=_am_req_event, visible=self.set_elem_vis(_am_req_event, ("am", count), True), pad=(5, 0))
-                ])
-                _install_models.append(
-                    [
-                        psg.Text(f'Description:', font=self.bold_f, pad=(30, 0), key=_am_desc1_event, visible=self.set_elem_vis(_am_desc1_event, ("am", count), True)), 
-                        psg.Text(f'{_desc}', font=self.default_f, key=_am_desc2_event, visible=self.set_elem_vis(_am_desc2_event, ("am", count), True))
-                    ]
-                )
+                    _install_models.append(
+                        [
+                            psg.Text(f'Description:', font=self.bold_f, pad=(30, 0), key=_am_desc1_event, visible=self.set_elem_vis(_am_desc1_event, ("am", count), True)), 
+                            psg.Text(f'{_desc}', font=self.default_f, key=_am_desc2_event, visible=self.set_elem_vis(_am_desc2_event, ("am", count), True))
+                        ]
+                    )
+                else:
+                    self.set_elem_vis([_am_serv_event, _am_req_event, _am_desc1_event, _am_desc2_event], ("am", count), True)
             else:
-                _am_serv_event = self.install_configs["am"][str(count)]["SERVICE"]["event"]
-                _am_req_event = self.install_configs["am"][str(count)]["WEBREQUEST"]["event"]
-                _am_desc1_event = self.install_configs["am"][str(count)]["install_desc_head_am"]["event"]
-                _am_desc2_event = self.install_configs["am"][str(count)]["install_desc_body_am"]["event"]
+                _am_serv_event = self.install_configs["am"][str(count)]["SERVICE"]["key"]
+                _am_req_event = self.install_configs["am"][str(count)]["WEBREQUEST"]["key"]
+                _am_desc1_event = self.install_configs["am"][str(count)]["install_desc_head_am"]["key"]
+                _am_desc2_event = self.install_configs["am"][str(count)]["install_desc_body_am"]["key"]
                 self.set_elem_vis([_am_serv_event, _am_req_event, _am_desc1_event, _am_desc2_event], ("am", count), False)
 
         if not _available_models_header:
-            if _am_header_event in self.created_elems and self.just_started:
+            if _am_header_event in self.created_elems and get_layout:
                 self.created_elems.pop(_am_header_event)
-            if not self.just_started:
+            if not get_layout:
                 self.set_elem_vis(_am_header_event, ("am", 0), False)
+        
+        if not get_layout:
+            return True if _available_models_header else False
         return _install_models
     
-    def get_install_layout(self, get_layout=True, search_filter=None):
+    def get_install_layout(self, get_layout=False, search_filter=None):
+        '''
+        GET LAYOUT ONLY ON CLASS INIT!!! > self.construct_install_tab
+        '''
         _install_layout = []
         # Available Uninstalled Tools
         _install_tools = self.get_install_tools(get_layout=get_layout, search_filter=search_filter)
         
         if _install_tools:
-            _install_layout += _install_tools
-            if self.just_started:
+            if get_layout:
+                _install_layout += _install_tools
                 self.exist_at_sep = True
                 self.at_separator = self.create_elem_key('install_separator_at_up', ("at", 0))
-            _install_layout.append([psg.Text('_'*80, pad=(0, 20), key=self.at_separator, visible=self.set_elem_vis(self.at_separator, ("at", 0), True))])
+                _install_layout.append([psg.Text('_'*80, pad=(0, 20), key=self.at_separator, visible=self.set_elem_vis(self.at_separator, ("at", 0), True))])
+            else:
+                self.set_elem_vis(self.at_separator, ("at", 0), True)
         elif self.exist_at_sep:
+            print("\n\n\n\nIVE REACHED HERE\n\n\n")
             self.set_elem_vis(self.at_separator, ("at", 0), False)
 
         # Upgradable Models / Tools
         _upgrade_models = self.get_upgrade_models(get_layout=get_layout, search_filter=search_filter)
         if _upgrade_models:
-            _install_layout += _upgrade_models
-            if self.just_started:
+            if get_layout:
+                _install_layout += _upgrade_models
                 self.exist_up_sep = True
                 self.up_separator = self.create_elem_key('install_separator_up_am', ("up", 0))
-            _install_layout.append([psg.Text('_'*80, pad=(0, 20), key=self.up_separator, visible=self.set_elem_vis(self.up_separator, ("up", 0), True))])
+                _install_layout.append([psg.Text('_'*80, pad=(0, 20), key=self.up_separator, visible=self.set_elem_vis(self.up_separator, ("up", 0), True))])
+            else:
+                self.set_elem_vis(self.up_separator, ("up", 0), True)
         elif self.exist_up_sep:
             self.set_elem_vis(self.up_separator, ("up", 0), False)
+
 
         # Available Uninstalled Models
         _install_models = self.get_install_models(get_layout=get_layout, search_filter=search_filter)
         if _install_models:
-            _install_layout += _install_models
+            if get_layout:
+                _install_layout += _install_models
         
-        print("INSTALL CONF:", json.dumps(self.install_configs, indent=2))
-        return _install_layout
+        # if DEBUG:
+        #     print("INSTALL CONF:", json.dumps(self.install_configs, indent=2))
+        if get_layout:
+            return _install_layout
     def construct_install_tab(self):
-        _install_layout = self.get_install_layout()
+        _install_layout = self.get_install_layout(get_layout=True)
         if not _install_layout:
             self.exist_installer = False
             return [
@@ -1233,19 +1271,21 @@ class SGui():
         # print("SEARCH QUERY:", _search_filter)
         if _search_filter.strip() != "":
             self.mem_install_search = _search_filter.strip()
-            self.get_install_layout(search_filter=_search_filter)
+            self.get_install_layout(get_layout=False, search_filter=_search_filter)
         else:
             self.mem_install_search = "Search"
-            self.get_install_layout()
+            self.get_install_layout(get_layout=False)
 
-        _taget_dict = {key: self.install_configs[key] for key in ["at","up", "am"]}
+        _taget_dict = {key:values for key, values in self.install_configs.items() if key in ["at","up", "am"]}
+        print()
         for _, _key in _taget_dict.items():
             for _, _cycle in _key.items():
                 for _, _data in _cycle.items():
-                    print("_data:", _data)
                     self.root.refresh()
-                    _elem, _vis = _data["event"], _data["visibility"]
+                    _elem, _vis = _data["key"], _data["visibility"]
+                    print("Search Install TAB:", _data)
                     self.root[_elem].update(visible=_vis)
+        print()
                 
         return "-done-"
         
