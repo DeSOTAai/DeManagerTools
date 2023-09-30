@@ -5,7 +5,6 @@ user_path=os.path.expanduser('~')
 desota_root_path=os.path.join(user_path, "Desota")
 config_folder=os.path.join(desota_root_path, "Configs")  # User | Services
 app_path=os.path.join(desota_root_path, "DeManagerTools")
-out_bat_folder=os.path.join(app_path, "executables", "Windows")
 
 # retieved from https://stackoverflow.com/a/11995662  && https://stackoverflow.com/a/10052222 && https://stackoverflow.com/a/40388766
 GET_ADMIN = [

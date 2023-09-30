@@ -36,7 +36,6 @@ EVENT_TO_METHOD = {
 user_path=os.path.expanduser('~')
 desota_root_path=os.path.join(user_path, "Desota")
 app_path=os.path.join(desota_root_path, "DeManagerTools")
-out_bat_folder=os.path.join(app_path, "executables", "Windows")
 
 # import pyyaml module
 import yaml
@@ -849,7 +848,7 @@ class SGui():
         
         if self.system == "win":
             wbm = WinBatManager(self.user_config, self.latest_services_config, _models_2_upgrade)
-            _installer_tmp_path = os.path.join(out_bat_folder, "desota_tmp_installer.bat")
+            _installer_tmp_path = os.path.join(app_path, "desota_tmp_installer.bat")
             _install_prog_file = os.path.join(app_path, "install_progress.txt")
             wbm.create_models_instalation(_installer_tmp_path, _install_prog_file, start_install=True)
             del wbm
