@@ -148,23 +148,20 @@ class SGui():
 
         #Search Dashboard
         if self.exist_dash:
-            self.root['searchDash'].bind("<Return>", "_Enter")
-            
             self.root['searchDash'].Widget.config(takefocus=0)
-            
+            self.mem_dash_search = None
+
+            self.root['searchDash'].bind("<Return>", "_Enter")
             self.root['searchDash'].bind("<FocusIn>", "_FocusIn")
             self.root['searchDash'].bind("<FocusOut>", "_FocusOut")
-            self.mem_dash_search = None
         #Search Install
         if self.exist_installer:
-            self.root['searchInstall'].bind("<Return>", "_Enter")
-            
             self.root['searchInstall'].Widget.config(takefocus=0)
-            
+            self.mem_install_search = None
+
+            self.root['searchInstall'].bind("<Return>", "_Enter")
             self.root['searchInstall'].bind("<FocusIn>", "_FocusIn")
             self.root['searchInstall'].bind("<FocusOut>", "_FocusOut")
-
-            self.mem_install_search = None
 
 
     def sgui_exit(self) -> None:
