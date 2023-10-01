@@ -99,6 +99,11 @@ class SGui():
         }
         self.exist_at_sep = False
         self.exist_up_sep = False
+
+        #define user models/tools
+        self.user_tools = []
+        self.user_models = []
+
         #define tab layouts
         self.tab1 = self.construct_monitor_models_tab()
         self.tab2 = self.construct_install_tab()
@@ -129,10 +134,6 @@ class SGui():
         self.tools_click = True
         self.models_selected = []
         self.models_click = True
-
-        #define user services
-        self.user_tools = []
-        self.user_models = []
 
         #Define Window
         self.root = psg.Window(
@@ -219,18 +220,23 @@ class SGui():
         return _status
 
     def set_installed_services(self, user_tools=None, user_models=None):
-        self.user_tools = []
-        self.user_models = []
-        if not ( (user_tools and user_models) or (isinstance(user_tools, list) and isinstance(user_models, list)) ):
+        # self.user_tools = []
+        # self.user_models = []
+        if not (user_tools and user_models) or not (isinstance(user_tools, list) and isinstance(user_models, list)):
+            print("DEBUG -> set_installed_services (user_config['models']):", self.user_config)
             if self.user_config['models']:
-                for _user_service, _v in self.user_config['models'].items():
+                for _user_service in list(self.user_config['models'].keys()):
                     if _user_service in self.tools_services:
-                        self.user_tools.append(_user_service)
+                        if _user_service not in self.user_tools:
+                            self.user_tools.append(_user_service)
                     else:
-                        self.user_models.append(_user_service)
+                        if _user_service not in self.user_models:
+                            self.user_models.append(_user_service)
             return
-        self.user_tools += user_tools
-        self.user_models += user_models
+        self.user_tools = user_tools
+        self.user_models = user_models
+        print("DEBUG -> set_installed_services (user_tools):", self.user_tools)
+        print("DEBUG -> set_installed_services (user_models):", self.user_models)
 
     def get_started_manual_services(self):
         if os.path.isfile(self.started_manual_services_file):
