@@ -18,7 +18,7 @@ DeManagerTools consists on a GUI to:
 
 ## Windows
 
-* Go to CMD as Administrator (command prompt):
+* Go to CMD (command prompt):
     * <kbd>⊞ Win</kbd> + <kbd>R</kbd>
     * Enter: `cmd` 
 
