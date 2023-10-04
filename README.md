@@ -33,8 +33,9 @@ DeManagerTools consists on a GUI to:
 <!-- TODO: Convert desota host into HTTPS -->
 <!-- [![Install DeManagerTools](https://img.shields.io/static/v1?label=Desota%20-%20Manager%20Tools&message=Install&color=blue&logo=windows)](http://129.152.27.36/assistant/download.php?system=win&file=demanagertools) -->
 
-1. Uncompress File
-2. Run .BAT file
+<!-- 1. Uncompress File
+2. Run .EXE file -->
+
 </details>
 
 <details open>
