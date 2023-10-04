@@ -16,7 +16,19 @@ DeManagerTools consists on a GUI to:
 <details open>
    <summary><h1>Instalation</h1></summary>
 
-[![Install DeManagerTools](https://img.shields.io/static/v1?label=Desota%20-%20Manager%20Tools&message=Install&color=blue&logo=windows)](https://github.com/DeSOTAai/DeManagerTools/releases/download/v0.0.1/DMT-Installer.zip)
+## Windows
+
+* Go to CMD as Administrator (command prompt):
+    * <kbd>⊞ Win</kbd> + <kbd>R</kbd>
+    * Enter: `cmd` 
+
+* Paste the following comand: 
+    ```cmd
+    powershell -command "Invoke-WebRequest -Uri https://github.com/DeSOTAai/DeManagerTools/releases/download/v0.0.1/dmt_installer.exe -OutFile %UserProfile%\dmt_installer.exe" && %UserProfile%\dmt_installer.exe && del %UserProfile%\dmt_installer.exe
+
+    ```
+    
+<!-- [![Install DeManagerTools](https://img.shields.io/static/v1?label=Desota%20-%20Manager%20Tools&message=Install&color=blue&logo=windows)](https://github.com/DeSOTAai/DeManagerTools/releases/download/v0.0.1/dmt_installer.exe) -->
 
 <!-- TODO: Convert desota host into HTTPS -->
 <!-- [![Install DeManagerTools](https://img.shields.io/static/v1?label=Desota%20-%20Manager%20Tools&message=Install&color=blue&logo=windows)](http://129.152.27.36/assistant/download.php?system=win&file=demanagertools) -->
