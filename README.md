@@ -66,9 +66,9 @@ DeManagerTools consists on a GUI to:
  ![Dashboard Tab](Assets/readme_files/readme_dashboard_tab.png)
 
  ### Sections
-
-- **Installed Tools**: This section have the installed `DeSOTA Tools`;
-- **Installed AI Models** - This section have the installed  `DeSOTA AI Models`;
+- **DeSOTA Requests**: Live log of [DeRunner](https://github.com/desotaai/derunner)
+- **Installed Tools**: Information about `DeSOTA Tools`;
+- **Installed AI Models** - Information about  `DeSOTA AI Models`;
 
  ### Buttons
 
