@@ -33,14 +33,14 @@ EVENT_TO_METHOD = {
     "searchInstall_FocusOut": "focus_out_search_install",
 }
 
-user_path=os.path.expanduser('~')
-desota_root_path=os.path.join(user_path, "Desota")
-app_path=os.path.join(desota_root_path, "DeManagerTools")
+USER_PATH=os.path.expanduser('~')
+DESOTA_ROOT_PATH=os.path.join(USER_PATH, "Desota")
+APP_PATH=os.path.join(DESOTA_ROOT_PATH, "DeManagerTools")
 
 # import pyyaml module
 import yaml
 from yaml.loader import SafeLoader
-config_folder=os.path.join(desota_root_path, "Configs")  # User | Services
+CONFIG_FOLDER=os.path.join(DESOTA_ROOT_PATH, "Configs")  # User | Services
 
 # Services Configurations - Latest version URL
 LATEST_SERV_CONF_RAW = "https://raw.githubusercontent.com/DeSOTAai/DeRunner/main/Assets/latest_services.config.yaml"
@@ -57,8 +57,8 @@ class SGui():
         self.tab_keys= [ '-TAB1-', '-TAB2-', '-TAB3-']
         self.themes = psg.ListOfLookAndFeelValues()
         self.current_theme = self.get_user_theme()
-        self.icon = os.path.join(app_path, "Assets", "icon.ico")
-        self.started_manual_services_file = os.path.join(config_folder, "Services", "manual_services_started.txt")
+        self.icon = os.path.join(APP_PATH, "Assets", "icon.ico")
+        self.started_manual_services_file = os.path.join(CONFIG_FOLDER, "Services", "manual_services_started.txt")
         
         self.services_config, self.latest_services_config = self.get_services_config(ignore_update=ignore_update)
         if not self.services_config:
@@ -174,25 +174,25 @@ class SGui():
 
     ## Util Funks
     def get_user_theme(self):
-        if not os.path.isfile(os.path.join(app_path, "user_theme.txt")):
-            with open(os.path.join(app_path, "user_theme.txt"), "w") as fw:
+        if not os.path.isfile(os.path.join(APP_PATH, "user_theme.txt")):
+            with open(os.path.join(APP_PATH, "user_theme.txt"), "w") as fw:
                 fw.write("DarkBlue")
                 return "DarkBlue"
-        with open(os.path.join(app_path, "user_theme.txt"), "r") as fr:
+        with open(os.path.join(APP_PATH, "user_theme.txt"), "r") as fr:
             return fr.read().strip()
     def set_user_theme(self, theme):
-        with open(os.path.join(app_path, "user_theme.txt"), "w") as fw:
+        with open(os.path.join(APP_PATH, "user_theme.txt"), "w") as fw:
             fw.write(theme)
 
     def get_app_status(self):
-        if not os.path.isfile(os.path.join(app_path, "status.txt")):
-            with open(os.path.join(app_path, "status.txt"), "w") as fw:
+        if not os.path.isfile(os.path.join(APP_PATH, "status.txt")):
+            with open(os.path.join(APP_PATH, "status.txt"), "w") as fw:
                 fw.write("0")
                 return "0"
-        with open(os.path.join(app_path, "status.txt"), "r") as fr:
+        with open(os.path.join(APP_PATH, "status.txt"), "r") as fr:
             return fr.read().strip()
     def set_app_status(self, status):
-        with open(os.path.join(app_path, "status.txt"), "w") as fw:
+        with open(os.path.join(APP_PATH, "status.txt"), "w") as fw:
             fw.write(str(status))
 
     def set_current_tab(self, current_tab):
@@ -200,7 +200,7 @@ class SGui():
 
     def get_service_status(self, get_status_path):
         _curr_epoch = time.time()
-        _target_status_res = os.path.join(app_path, f"tmp_status_serv{_curr_epoch}.txt")
+        _target_status_res = os.path.join(APP_PATH, f"tmp_status_serv{_curr_epoch}.txt")
         # retrieved from https://stackoverflow.com/a/62226026
         _sproc = subprocess.Popen(
             [get_status_path, _target_status_res],
@@ -255,7 +255,7 @@ class SGui():
         )
         _started_manual_services = [m.replace("\n", "").strip() for m in _started_manual_services]
         wbm = WinBatManager(self.user_config, self.services_config, _started_manual_services)
-        _target_tmp_stopper = os.path.join(app_path, f"tmp_manual_services_stopper{time.time()}.bat")
+        _target_tmp_stopper = os.path.join(APP_PATH, f"tmp_manual_services_stopper{time.time()}.bat")
         wbm.update_models_stopper(only_selected=True, tmp_bat_target=_target_tmp_stopper, autodelete=True)
         subprocess.call([_target_tmp_stopper])
         
@@ -264,8 +264,8 @@ class SGui():
         return "-done-"
 
     def get_services_config(self, ignore_update=False):
-        _serv_conf_path = os.path.join(config_folder, "services.config.yaml")
-        _latest_serv_conf_path = os.path.join(config_folder, "latest_services_config.yaml") 
+        _serv_conf_path = os.path.join(CONFIG_FOLDER, "services.config.yaml")
+        _latest_serv_conf_path = os.path.join(CONFIG_FOLDER, "latest_services_config.yaml") 
         if ignore_update:
             with open( _serv_conf_path ) as f_curr:
                 with open(_latest_serv_conf_path) as f_last:
@@ -287,12 +287,12 @@ class SGui():
                 with open(_latest_serv_conf_path) as f_last:
                     return yaml.load(f_curr, Loader=SafeLoader), yaml.load(f_last, Loader=SafeLoader)
     def set_services_config(self):
-        _serv_conf_path = os.path.join(config_folder, "services.config.yaml")
+        _serv_conf_path = os.path.join(CONFIG_FOLDER, "services.config.yaml")
         with open(_serv_conf_path, 'w',) as fw:
             yaml.dump(self.services_config, fw, sort_keys=False)
 
     def get_user_config(self):
-        _user_config_path = os.path.join(config_folder, "user.config.yaml")
+        _user_config_path = os.path.join(CONFIG_FOLDER, "user.config.yaml")
         if os.path.isfile(_user_config_path):
             with open(_user_config_path) as f:
                 return yaml.load(f, Loader=SafeLoader)
@@ -315,7 +315,7 @@ class SGui():
                 continue
             _tool_params = self.services_config["services_params"][_k]
             _tool_desc = _tool_params["short_description"]
-            _tool_status_path = os.path.join(user_path, _tool_params[self.system]["service_path"], _tool_params[self.system]["status"]) if _tool_params[self.system]["status"] else None
+            _tool_status_path = os.path.join(USER_PATH, _tool_params[self.system]["service_path"], _tool_params[self.system]["status"]) if _tool_params[self.system]["status"] else None
             _tool_status = self.get_service_status(_tool_status_path).lower() if _tool_status_path else "Not Service"
             if search_filter:
                 if search_filter.lower() in _k.lower() or search_filter.lower() in _tool_desc.lower():
@@ -334,7 +334,7 @@ class SGui():
                 continue
             _tool_params = self.services_config["services_params"][_k]
             _tool_desc = _tool_params["short_description"]
-            _tool_status_path = os.path.join(user_path, _tool_params[self.system]["service_path"], _tool_params[self.system]["status"]) if _tool_params[self.system]["status"] else None
+            _tool_status_path = os.path.join(USER_PATH, _tool_params[self.system]["service_path"], _tool_params[self.system]["status"]) if _tool_params[self.system]["status"] else None
             _tool_status = self.get_service_status(_tool_status_path).lower() if _tool_status_path else "Not a Service"
             if search_filter:
                 if search_filter.lower() in _k.lower() or search_filter.lower() in _tool_desc.lower():
@@ -851,8 +851,8 @@ class SGui():
         
         if self.system == "win":
             wbm = WinBatManager(self.user_config, self.latest_services_config, _models_2_upgrade)
-            _installer_tmp_path = os.path.join(app_path, "desota_tmp_installer.bat")
-            _install_prog_file = os.path.join(app_path, "install_progress.txt")
+            _installer_tmp_path = os.path.join(APP_PATH, "desota_tmp_installer.bat")
+            _install_prog_file = os.path.join(APP_PATH, "install_progress.txt")
             wbm.create_models_instalation(_installer_tmp_path, _install_prog_file, start_install=True)
             del wbm
             
@@ -990,7 +990,7 @@ class SGui():
                     pass
 
                 #Start Run Constantly Services
-                _start_run_constantly_serv_path = os.path.join(config_folder, "Services", "models_starter.bat")
+                _start_run_constantly_serv_path = os.path.join(CONFIG_FOLDER, "Services", "models_starter.bat")
                 _sproc = subprocess.Popen([_start_run_constantly_serv_path])
                 _res = "-restart-"
                 while True:
@@ -1038,7 +1038,7 @@ class SGui():
                 _res = "-restart-"
                 _model_serv_params = self.services_config["services_params"][model_name][self.system]
                 _model_service_start_path = os.path.join(
-                    user_path, 
+                    USER_PATH, 
                     _model_serv_params["service_path"],
                     _model_serv_params["starter"]
                 )
@@ -1063,7 +1063,7 @@ class SGui():
             cli_cmd = []
             for mc in self.services_config["services_params"][model_name][self.system][self.services_config["services_params"][model_name]["model_cli"]]:
                 # PATH TEST (get files and arguments)
-                _tmp_path = os.path.join(user_path, mc)
+                _tmp_path = os.path.join(USER_PATH, mc)
                 if os.path.isfile(_tmp_path):
                     # Files
                     cli_cmd.append(_tmp_path)
@@ -1117,7 +1117,7 @@ class SGui():
             f"Confirm you want to erase the following models: {json.dumps(_models_2_uninstall, indent=4)}",  
             title="", 
             icon=self.icon,
-            image=os.path.join(app_path, "Assets", "ru-sure-about-that.gif")
+            image=os.path.join(APP_PATH, "Assets", "ru-sure-about-that.gif")
         )
         if _str_serv != "Yes":
             return "-ignore-"
@@ -1140,7 +1140,7 @@ class SGui():
             end_wbm.update_models_starter()
             
             wbm = WinBatManager(self.user_config, self.services_config, _models_2_uninstall)
-            uninstall_waiter_path = os.path.join(app_path, f"tmp_uninstaller_status{time.time()}.txt")
+            uninstall_waiter_path = os.path.join(APP_PATH, f"tmp_uninstaller_status{time.time()}.txt")
             wbm.create_services_unintalation(start_uninstall=True, waiter={uninstall_waiter_path: 1})
             del wbm
             
@@ -1162,7 +1162,7 @@ class SGui():
             end_wbm.update_models_stopper()
             del end_wbm
             
-            with open(os.path.join(config_folder, "user.config.yaml"), 'w',) as fw:
+            with open(os.path.join(CONFIG_FOLDER, "user.config.yaml"), 'w',) as fw:
                 yaml.dump(self.user_config,fw,sort_keys=False)
             
 
@@ -1189,7 +1189,7 @@ class SGui():
             return "-ignore-"
         
         wbm = WinBatManager(self.user_config, self.services_config, _started_manual_services)
-        _target_tmp_stopper = os.path.join(app_path, f"tmp_manual_services_stopper{time.time()}.bat")
+        _target_tmp_stopper = os.path.join(APP_PATH, f"tmp_manual_services_stopper{time.time()}.bat")
         wbm.update_models_stopper(only_selected=True, tmp_bat_target=_target_tmp_stopper)
         _sproc = subprocess.Popen([_target_tmp_stopper])
         while True:
