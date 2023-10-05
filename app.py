@@ -31,6 +31,7 @@ EVENT_TO_METHOD = {
     "searchInstall_Enter": "search_install",
     "searchInstall_FocusIn": "focus_in_search_install",
     "searchInstall_FocusOut": "focus_out_search_install",
+    "derunner_log_head": "un_fold_derunner_log"
 }
 
 USER_PATH=os.path.expanduser('~')
@@ -103,6 +104,13 @@ class SGui():
         #define user models/tools
         self.user_tools = []
         self.user_models = []
+
+        #define derunner log existence
+        self.exist_derunner = False
+        self.derunner_fold = False
+        self.derunner_memory = ""
+
+        
 
         #define tab layouts
         self.tab1 = self.construct_monitor_models_tab()
@@ -303,7 +311,35 @@ class SGui():
         _app_last_v = self.latest_services_config["manager_params"][self.system]["version"]
         return (_app_curr_v != _app_last_v), _app_curr_v, _app_last_v
     
-    
+    def upddate_derunner_log(self):
+        if not self.exist_derunner:
+            return
+        
+        _gui_logger = self.root['derunner_log']
+
+        if self.system == "win":
+            _derunner_log_path = os.path.join(DESOTA_ROOT_PATH, "DeRunner", "service.log")
+        if not os.path.isfile(_derunner_log_path):
+            _gui_logger.Update(f"DeRunner service.log not found!\nPath:{_derunner_log_path}")
+            return
+        
+        _num_lines = 100
+
+        last_lines = []
+        with open(_derunner_log_path, 'rb') as f:
+            try:  # catch OSError in case of a one line file 
+                f.seek(-2, os.SEEK_END)
+                while _num_lines > 1:
+                    f.seek(-2, os.SEEK_CUR)
+                    if f.read(1) == b'\n':
+                        _num_lines -= 1
+            except OSError:
+                f.seek(0)
+            last_lines = f.read().decode()
+        if self.derunner_memory != last_lines:
+            self.derunner_memory = last_lines
+            _gui_logger.Update(last_lines)
+            _gui_logger.set_vscroll_position(1)
 
     # TAB Constructors
     # TAB 1 - Models Dashboard
@@ -408,17 +444,35 @@ class SGui():
                 _disabled = False
             else:
                 _disabled = True
-
-            return [
-                [psg.Input("Search", key='searchDash', expand_x=True)],
-                [psg.Column(_dashboard_layout, size=(800, 400), scrollable=True, key="_SCROLL_COL1_")],
-                [
-                    psg.Button('Take a Peek', button_color=("Green","White"), key="openModelUI", pad=(5, 0)), 
-                    psg.Button('Source Code', button_color=("Blue","White"), key="openSource", pad=(5, 0)),
-                    psg.Button('Stop Manual Services', button_color=("Orange","White"), key="stopManualServices", disabled=_disabled,pad=(5, 0)),
-                    psg.Button('Uninstall', button_color=("Red","White"), key="startUninstall", pad=(5, 0))
+            
+            ## DeRunner Logger
+            if "desotaai/derunner" in _tools:
+                self.exist_derunner = True
+                # _dashboard_layout.append([psg.Text('DeRunner Logger', font=self.header_f)])
+                # _dashboard_layout.append([psg.Multiline(size=(None, 10), reroute_cprint=True, key='derunner_log', expand_x=True, expand_y=False)])
+                return [
+                    [psg.Input("Search", key='searchDash', expand_x=True)],
+                    [psg.Text('DeRunner Logger ▼', key="derunner_log_head", enable_events=True, font=self.title_f)],
+                    [psg.Multiline(size=(None, 8), reroute_cprint=True, key='derunner_log', expand_x=True, expand_y=False), psg.Text('', key="derunner_log_clear", visible=False)],
+                    [psg.Column(_dashboard_layout, size=(800, 238), scrollable=True, key="_SCROLL_COL1_")],
+                    [
+                        psg.Button('Take a Peek', button_color=("Green","White"), key="openModelUI", pad=(5, 0)), 
+                        psg.Button('Source Code', button_color=("Blue","White"), key="openSource", pad=(5, 0)),
+                        psg.Button('Stop Manual Services', button_color=("Orange","White"), key="stopManualServices", disabled=_disabled,pad=(5, 0)),
+                        psg.Button('Uninstall', button_color=("Red","White"), key="startUninstall", pad=(5, 0))
+                    ]
                 ]
-            ]
+            else:
+                return [
+                    [psg.Input("Search", key='searchDash', expand_x=True)],
+                    [psg.Column(_dashboard_layout, size=(800, 400), scrollable=True, key="_SCROLL_COL1_")],
+                    [
+                        psg.Button('Take a Peek', button_color=("Green","White"), key="openModelUI", pad=(5, 0)), 
+                        psg.Button('Source Code', button_color=("Blue","White"), key="openSource", pad=(5, 0)),
+                        psg.Button('Stop Manual Services', button_color=("Orange","White"), key="stopManualServices", disabled=_disabled,pad=(5, 0)),
+                        psg.Button('Uninstall', button_color=("Red","White"), key="startUninstall", pad=(5, 0))
+                    ]
+                ]
     
 
     # TAB 2 - Models Instalation
@@ -1226,7 +1280,7 @@ class SGui():
 
             # (865, 529)
             if self.user_config['models']:
-                self.column_set_size(self.root["_SCROLL_COL1_"], (_size_x-65, _size_y-150))
+                self.column_set_size(self.root["_SCROLL_COL1_"], (_size_x-65, _size_y-317))
             if self.exist_installer:
                 self.column_set_size(self.root["_SCROLL_COL2_"], (_size_x-65, _size_y-150))
 
@@ -1293,8 +1347,28 @@ class SGui():
                 
         return "-done-"
         
+    # - Fold / Unfold DeRunner Log
+    def un_fold_derunner_log(self, values):
+        _head = self.root["derunner_log_head"]
+        _body = self.root["derunner_log"]
+        _clear = self.root["derunner_log_clear"]
+        _size_x, _size_y = self.root.size
+        if self.derunner_fold:
+            self.derunner_fold = False
+            _head.Update('DeRunner Logger ▼')
+            _body.Update(visible=True)
+            _clear.Update(visible=False)
 
-    
+            # RESIZE
+            self.column_set_size(self.root["_SCROLL_COL1_"], (_size_x-65, _size_y-317))
+        else:
+            self.derunner_fold = True
+            _head.Update('DeRunner Logger ▲')
+            _body.Update(visible=False)
+            _clear.Update(visible=True)
+            # RESIZE
+            self.column_set_size(self.root["_SCROLL_COL1_"], (_size_x-65, _size_y-205))
+        return "-done-"
 
     # Get Class Method From Event and Run Method
     def main_loop(self, ignore_event=[], timeout=None):
@@ -1336,6 +1410,7 @@ class SGui():
         #         self.root.normal()
         
         elif _event == psg.TIMEOUT_KEY:
+            self.upddate_derunner_log()
             return "-timeout-"
         
         # HANDLE TAB CHANGE
