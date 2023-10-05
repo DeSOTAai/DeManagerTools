@@ -452,7 +452,7 @@ class SGui():
                 # _dashboard_layout.append([psg.Multiline(size=(None, 10), reroute_cprint=True, key='derunner_log', expand_x=True, expand_y=False)])
                 return [
                     [psg.Input("Search", key='searchDash', expand_x=True)],
-                    [psg.Text('DeRunner Logger ▼', key="derunner_log_head", enable_events=True, font=self.title_f)],
+                    [psg.Text('DeSOTA  Requests ▼', tooltip="live log of models requests", key="derunner_log_head", enable_events=True, font=self.title_f)],
                     [psg.Multiline(size=(None, 8), reroute_cprint=True, key='derunner_log', expand_x=True, expand_y=False), psg.Text('', key="derunner_log_clear", visible=False)],
                     [psg.Column(_dashboard_layout, size=(800, 238), scrollable=True, key="_SCROLL_COL1_")],
                     [
@@ -1355,7 +1355,7 @@ class SGui():
         _size_x, _size_y = self.root.size
         if self.derunner_fold:
             self.derunner_fold = False
-            _head.Update('DeRunner Logger ▼')
+            _head.Update('DeSOTA Requests ▼')
             _body.Update(visible=True)
             _clear.Update(visible=False)
 
@@ -1363,7 +1363,7 @@ class SGui():
             self.column_set_size(self.root["_SCROLL_COL1_"], (_size_x-65, _size_y-317))
         else:
             self.derunner_fold = True
-            _head.Update('DeRunner Logger ▲')
+            _head.Update('DeSOTA Requests ▲')
             _body.Update(visible=False)
             _clear.Update(visible=True)
             # RESIZE
