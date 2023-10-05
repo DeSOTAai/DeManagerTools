@@ -1398,19 +1398,21 @@ def main():
             _tab_selected = True
             sgui.main_loop(timeout=10)
             sgui.move_2_tab(_mem_open_tab)
-        print('*'*80)
-        _sgui_res = sgui.main_loop()
-        if DEBUG:
+        _sgui_res = sgui.main_loop(timeout=100)
+        if DEBUG and _sgui_res != "-ignore-" and _sgui_res != "-timeout-":
             print(f" [ DEBUG ] -> main_loop res = {_sgui_res}")
+            print('*'*80)
+
         if _sgui_res == "-ignore-":
             continue
+
         elif _sgui_res == "-restart-":
             _mem_open_tab = sgui.current_tab
             sgui.root.close()
             sgui = SGui(ignore_update=True)
             _tab_selected = False
             continue
-
+        
         elif _sgui_res == "-close-":
             return 0
         
