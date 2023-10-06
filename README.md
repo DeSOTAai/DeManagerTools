@@ -22,7 +22,7 @@ DeManagerTools consists on a GUI to:
 
 ![dmt_installer](Assets/readme_files/dmt_installer.gif)
 
-`Source Code` availabe [here](https://github.com/DeSOTAai/DeManagerTools/releases/download/v0.0.2/dmt_installer-source_code_v0.0.2-win64.zip)
+[Source Code](https://github.com/DeSOTAai/DeManagerTools/releases/download/v0.0.2/dmt_installer-source_code_v0.0.2-win64.zip)
 
 ## Manual Windows Instalation
 
