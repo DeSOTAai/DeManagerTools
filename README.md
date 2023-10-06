@@ -16,7 +16,13 @@ DeManagerTools consists on a GUI to:
 <details open>
    <summary><h1>Instalation</h1></summary>
 
-## Windows
+## Dedicated Installer
+
+[![Install DeManagerTools](https://img.shields.io/static/v1?label=Desota%20-%20Manager%20Tools&message=Install&color=blue&logo=windows)](https://desota.net/assistant/download.php?file=demanagertools&system=win)
+
+![dmt_installer](Assets/readme_files/dmt_installer.gif)
+
+## Manual Windows Instalation
 
 * Go to CMD (command prompt):
     * <kbd>⊞ Win</kbd> + <kbd>R</kbd>
@@ -24,7 +30,7 @@ DeManagerTools consists on a GUI to:
 
 * Paste the following comand: 
     ```cmd
-    powershell -command "Invoke-WebRequest -Uri https://github.com/DeSOTAai/DeManagerTools/releases/download/v0.0.1/dmt_installer.exe -OutFile %UserProfile%\dmt_installer.exe" && %UserProfile%\dmt_installer.exe && del %UserProfile%\dmt_installer.exe
+    powershell -command "Invoke-WebRequest -Uri https://raw.githubusercontent.com/DeSOTAai/DeManagerTools/main/executables/Windows/demanagertools.install.bat -OutFile ~\dmt_installer.bat" && call %UserProfile%\dmt_installer.bat && del %UserProfile%\dmt_installer.bat
 
     ```
     
