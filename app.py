@@ -1,11 +1,6 @@
-import os
-import webbrowser
-import json
 import PySimpleGUI as psg
-from Tools.services_manager import WinBatManager
-import subprocess
-import time
-import requests
+import os, time, requests, json
+import subprocess, webbrowser
 
 DEBUG = True
 DESOTA_TOOLS_SERVICES = {    # Desc -> Service: Checkbox Disabled = REQUIRED
@@ -37,14 +32,34 @@ EVENT_TO_METHOD = {
 USER_PATH=os.path.expanduser('~')
 DESOTA_ROOT_PATH=os.path.join(USER_PATH, "Desota")
 APP_PATH=os.path.join(DESOTA_ROOT_PATH, "DeManagerTools")
-
+LOG_PATH=os.path.join(DESOTA_ROOT_PATH, "demanager.log")
+TMP_PATH=os.path.join(DESOTA_ROOT_PATH, "tmp")
+if not os.path.isdir(TMP_PATH):
+    os.mkdir(TMP_PATH)
 # import pyyaml module
 import yaml
 from yaml.loader import SafeLoader
 CONFIG_FOLDER=os.path.join(DESOTA_ROOT_PATH, "Configs")  # User | Services
+USER_CONFIG_PATH=os.path.join(CONFIG_FOLDER, "user.config.yaml")
+SERVICES_CONFIG_PATH=os.path.join(CONFIG_FOLDER, "services.config.yaml")
+LAST_SERVICES_CONFIG_PATH=os.path.join(CONFIG_FOLDER, "latest_services.config.yaml")
 
 # Services Configurations - Latest version URL
 LATEST_SERV_CONF_RAW = "https://raw.githubusercontent.com/DeSOTAai/DeRunner/main/Assets/latest_services.config.yaml"
+
+# retieved from https://stackoverflow.com/a/11995662  && https://stackoverflow.com/a/10052222 && https://stackoverflow.com/a/40388766
+GET_WIN_ADMIN = [
+    "net session >NUL 2>NUL\n",
+    "IF %errorLevel% NEQ 0 (\n",
+    "\tgoto UACPrompt\n",
+    ") ELSE (\n",
+    "\tgoto gotAdmin\n",
+    ")\n",
+    ":UACPrompt\n",
+    'powershell -Command "Start-Process -Wait -Verb RunAs -FilePath \'%0\' -ArgumentList \'am_admin\'" \n',
+    "exit /B\n",
+    ":gotAdmin\n"
+]
 
 
 # Construct APP with PySimpleGui
@@ -59,7 +74,7 @@ class SGui():
         self.themes = psg.ListOfLookAndFeelValues()
         self.current_theme = self.get_user_theme()
         self.icon = os.path.join(APP_PATH, "Assets", "icon.ico")
-        self.started_manual_services_file = os.path.join(CONFIG_FOLDER, "Services", "manual_services_started.txt")
+        self.started_manual_services_file = os.path.join(CONFIG_FOLDER, "manual_services_started.txt")
         
         self.services_config, self.latest_services_config = self.get_services_config(ignore_update=ignore_update)
         if not self.services_config:
@@ -107,15 +122,18 @@ class SGui():
 
         #define derunner log existence
         self.exist_derunner = False
-        self.derunner_fold = False
+        self.derunner_fold = True
         self.derunner_memory = ""
 
         
-
+        print("Creating App Layots:")
         #define tab layouts
         self.tab1 = self.construct_monitor_models_tab()
+        print("    Tab 1 Created")
         self.tab2 = self.construct_install_tab()
+        print("    Tab 2 Created")
         self.tab3 = self.construct_api_tab()
+        print("    Tab 3 Created")
         
         #define Tab Group Layout
         self.tabgrp = [
@@ -136,6 +154,8 @@ class SGui():
                 border_width=5
             )]
         ]
+        print("    Tab Group Created")
+
 
         #define dashboard selected rows
         self.tools_selected = []
@@ -144,6 +164,7 @@ class SGui():
         self.models_click = True
 
         #Define Window
+        print("Creating App Window...")
         self.root = psg.Window(
             "Desota - Manager Tools",
             self.tabgrp, 
@@ -152,9 +173,10 @@ class SGui():
             resizable=True,
             finalize=True
         )
+        
+        print("Defining Window Binds and what not...")
         self.root_size, self.root.size = self.root.size, self.root.size
         self.root.bind('<Configure>',"windowConfigure")
-
         #Search Dashboard
         if self.exist_dash:
             self.root['searchDash'].Widget.config(takefocus=0)
@@ -171,13 +193,14 @@ class SGui():
             self.root['searchInstall'].bind("<Return>", "_Enter")
             self.root['searchInstall'].bind("<FocusIn>", "_FocusIn")
             self.root['searchInstall'].bind("<FocusOut>", "_FocusOut")
-
+        
+        # INIT window size
+        self.fresh_window_size()
 
     def sgui_exit(self) -> None:
         self.close_manual_services()
         self.set_app_status(0)
         self.root.close()
-
 
 
     ## Util Funks
@@ -207,29 +230,35 @@ class SGui():
         self.current_tab = current_tab
 
     def get_service_status(self, get_status_path):
+        if not os.path.isfile(get_status_path):
+            return None
         _curr_epoch = time.time()
-        _target_status_res = os.path.join(APP_PATH, f"tmp_status_serv{_curr_epoch}.txt")
+        asset_basename=os.path.basename(get_status_path).split(".")[0]
+        _target_status_res = os.path.join(APP_PATH, f"{asset_basename}{_curr_epoch}.txt")
         # retrieved from https://stackoverflow.com/a/62226026
+        so = open(_target_status_res, "w")
+        _status_cmd = [get_status_path, "/nopause"] if self.system == "win" else ["bash", get_status_path] if self.system == "lin" else []
+        print("          State CMD:", _status_cmd)
         _sproc = subprocess.Popen(
-            [get_status_path, _target_status_res],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.STDOUT,
+            _status_cmd,
+            # stdout=subprocess.DEVNULL,
+            stdout=so,
+            stderr=so,
             creationflags=subprocess.CREATE_NO_WINDOW
         )
 
         returnCode = _sproc.wait()
+        so.close()
 
         if not os.path.isfile(_target_status_res):
             return "unable to get status"
         
         with open(_target_status_res, "r") as fr:
             _status = fr.read().replace("\n", "").strip()
-        os.remove(_target_status_res)
+        # os.remove(_target_status_res)
         return _status
 
     def set_installed_services(self, user_tools=None, user_models=None):
-        # self.user_tools = []
-        # self.user_models = []
         if not (user_tools and user_models) or not (isinstance(user_tools, list) and isinstance(user_models, list)):
             print("DEBUG -> set_installed_services (user_config['models']):", self.user_config)
             if self.user_config['models']:
@@ -243,14 +272,22 @@ class SGui():
             return
         self.user_tools = user_tools
         self.user_models = user_models
-        print("DEBUG -> set_installed_services (user_tools):", self.user_tools)
-        print("DEBUG -> set_installed_services (user_models):", self.user_models)
+        print("          Set User Tools:", self.user_tools)
+        print("          Set User Models:", self.user_models)
 
     def get_started_manual_services(self):
         if os.path.isfile(self.started_manual_services_file):
             with open(self.started_manual_services_file, "r") as fr:
                 return fr.readlines()
         return []
+    def set_started_manual_services(self, content):
+        if not content:
+            return
+        with open(self.started_manual_services_file, "w") as fw:
+            if isinstance(content, list):
+                fw.writelines(content)
+            else:
+                fw.write(f"{content}\n")
     
     def close_manual_services(self):
         _started_manual_services = self.get_started_manual_services()
@@ -262,47 +299,47 @@ class SGui():
             icon=self.icon
         )
         _started_manual_services = [m.replace("\n", "").strip() for m in _started_manual_services]
-        wbm = WinBatManager(self.user_config, self.services_config, _started_manual_services)
-        _target_tmp_stopper = os.path.join(APP_PATH, f"tmp_manual_services_stopper{time.time()}.bat")
-        wbm.update_models_stopper(only_selected=True, tmp_bat_target=_target_tmp_stopper, autodelete=True)
-        subprocess.call([_target_tmp_stopper])
+        for service in _started_manual_services:
+            _service_sys_params=self.services_config["services_params"][service][self.system]
+            _stop_path=os.path.join(USER_PATH, _service_sys_params['project_dir'], _service_sys_params['execs_path'], _service_sys_params['stoper'])
+            if self.system == "win":
+                _close_cmd=[_stop_path]
+            elif self.system == "lin":
+                _close_cmd=["bash", _stop_path]
+            subprocess.call(_close_cmd)
         
         os.remove(self.started_manual_services_file)
 
         return "-done-"
 
     def get_services_config(self, ignore_update=False):
-        _serv_conf_path = os.path.join(CONFIG_FOLDER, "services.config.yaml")
-        _latest_serv_conf_path = os.path.join(CONFIG_FOLDER, "latest_services_config.yaml") 
         if ignore_update:
-            with open( _serv_conf_path ) as f_curr:
-                with open(_latest_serv_conf_path) as f_last:
+            with open( SERVICES_CONFIG_PATH ) as f_curr:
+                with open(LAST_SERVICES_CONFIG_PATH) as f_last:
                     return yaml.load(f_curr, Loader=SafeLoader), yaml.load(f_last, Loader=SafeLoader)
         _req_res = requests.get(LATEST_SERV_CONF_RAW)
         if _req_res.status_code != 200:
             return None
         else:
             # Create Latest Services Config File
-            with open(_latest_serv_conf_path, "w") as fw:
+            with open(LAST_SERVICES_CONFIG_PATH, "w") as fw:
                 fw.write(_req_res.text)
 
             # Create Services Config File if don't exist
-            if not os.path.isfile(_serv_conf_path):
-                with open(_latest_serv_conf_path, "w") as fw:
+            if not os.path.isfile(SERVICES_CONFIG_PATH):
+                with open(LAST_SERVICES_CONFIG_PATH, "w") as fw:
                     fw.write(_req_res.text)
 
-            with open( _serv_conf_path ) as f_curr:
-                with open(_latest_serv_conf_path) as f_last:
+            with open( SERVICES_CONFIG_PATH ) as f_curr:
+                with open(LAST_SERVICES_CONFIG_PATH) as f_last:
                     return yaml.load(f_curr, Loader=SafeLoader), yaml.load(f_last, Loader=SafeLoader)
     def set_services_config(self):
-        _serv_conf_path = os.path.join(CONFIG_FOLDER, "services.config.yaml")
-        with open(_serv_conf_path, 'w',) as fw:
+        with open(SERVICES_CONFIG_PATH, 'w',) as fw:
             yaml.dump(self.services_config, fw, sort_keys=False)
 
     def get_user_config(self):
-        _user_config_path = os.path.join(CONFIG_FOLDER, "user.config.yaml")
-        if os.path.isfile(_user_config_path):
-            with open(_user_config_path) as f:
+        if os.path.isfile(USER_CONFIG_PATH):
+            with open(USER_CONFIG_PATH) as f:
                 return yaml.load(f, Loader=SafeLoader)
         return None
     
@@ -317,8 +354,7 @@ class SGui():
         
         _gui_logger = self.root['derunner_log']
 
-        if self.system == "win":
-            _derunner_log_path = os.path.join(DESOTA_ROOT_PATH, "DeRunner", "service.log")
+        _derunner_log_path = os.path.join(DESOTA_ROOT_PATH, "demanager.log")
         if not os.path.isfile(_derunner_log_path):
             _gui_logger.Update(f"DeRunner service.log not found!\nPath:{_derunner_log_path}")
             return
@@ -341,6 +377,462 @@ class SGui():
             _gui_logger.Update(last_lines)
             _gui_logger.set_vscroll_position(1)
 
+    def fresh_window_size(self):
+        if self.user_config["models"] and self.derunner_fold:
+            _size_x, _size_y = self.root.size
+            self.column_set_size(self.root["_SCROLL_COL1_"], (_size_x-65, _size_y-205))
+
+    def user_chown(self, path):
+        '''Remove root previleges for files and folders: Required for Linux'''
+        if self.system == "lin":
+            #CURR_PATH=/home/[USER]/Desota/DeRunner
+            USER=str(DESOTA_ROOT_PATH).split("/")[-2]
+            os.system(f"chown -R {USER} {path}")
+        return
+    
+    #   > Create Assets Script
+    def create_asset_install_script(self, model_ids, manage_configs_flag_path, asset_sucess_path, progress=None) -> str:
+        '''
+        Create model install|upgrade script
+
+        return sript path
+        '''
+        # 1 - INIT + Scripts HEADER
+        if self.system == "win":
+            '''I'm a windows nerd!'''
+            # Init
+            target_path = os.path.join(TMP_PATH, f"tmp_model_install{int(time.time())}.bat")
+            _start_cmd="start /W "
+            _call = "call "
+            _copy = "copy "
+            _rm = "del "
+            _noecho=" >NUL 2>NUL"
+            _log_prefix = "ECHO DeManagerTools.Install - "
+            _manage_configs_loop = [
+                f"ECHO 0 >{manage_configs_flag_path}\n",
+                ":wait4demanager",
+                f"SET /p fmanager=<{manage_configs_flag_path}"
+                "IF NOT %fmanager% == 1 GOTO wait4demanager"
+            ]
+            
+            # 1 - BAT HEADER
+            _tmp_file_lines = ["@ECHO OFF\n"]
+            _tmp_file_lines += GET_WIN_ADMIN
+            
+            # 1.1 - Wait DeRunner Service STOP
+            derunner_stop_path = os.path.join(USER_PATH, "DeRunner", "executables", "Windows", "derunner.stop.bat")
+            derunner_status_path = os.path.join(USER_PATH, "DeRunner", "executables", "Windows", "derunner.status.bat")
+            if os.path.isfile(derunner_stop_path):
+                _tmp_file_lines += [
+                    ":wait_derunner_stop\n",
+                    f"start /W {derunner_stop_path}"
+                    f'FOR /F "tokens=*" %%g IN (\'{derunner_status_path} /nopause\') do (SET derunner_status=%%g)\n',
+                    "IF %derunner_status% EQU SERVICE_RUNNING GOTO wait_derunner_stop\n"
+                ]
+        elif self.system=="lin":
+            '''I know what i'm doing '''
+            # Init
+            target_path = os.path.join(TMP_PATH, f"tmp_model_install{int(time.time())}.bash")
+            _start_cmd="bash "
+            _call=""
+            _copy = "cp "
+            _rm = "rm -rf "
+            _noecho=" &>/dev/nul"
+            _log_prefix = "echo DeManagerTools.Install - "
+            _manage_configs_loop = [
+                f"fmanager=$(cat {derunner_status_path})\n",
+                'while [ "$fmanager" != "1" ]\n',
+                "do\n",
+                f"\tfmanager=$(cat {derunner_status_path})\n",
+                "done\n",
+            ]
+            
+             # 1 - BASH HEADER
+            _tmp_file_lines = ["#!/bin/bash\n"]
+            
+            # 1.1 - Wait DeRunner Service STOP
+            derunner_stop_path = os.path.join(USER_PATH, "DeRunner", "executables", "Linux", "derunner.stop.bash")
+            derunner_status_path = os.path.join(USER_PATH, "DeRunner", "executables", "Linux", "derunner.status.bash")
+            if os.path.isfile(derunner_stop_path):
+                _tmp_file_lines += [
+                    f"_serv_status=$(bash {derunner_status_path})\n",
+                    'while [ "$_serv_status" = "SERVICE_RUNNING" ]\n',
+                    "do\n",
+                    f"\tbash {derunner_stop_path}"
+                    f"\t_serv_status=$(bash {derunner_status_path})\n",
+                    "done\n",
+                ]
+
+        if isinstance(model_ids, str):
+            model_ids = [model_ids]
+        if isinstance(model_ids, dict):
+            model_ids = list(model_ids.keys())
+        if not isinstance(model_ids, list):
+            return None
+        
+        # 2 - Uninstall <- Required Models
+        for _model in model_ids:
+            if _model not in self.services_config["services_params"]:
+                continue
+            _asset_sys_params=self.services_config["services_params"][_model][self.system]
+            _asset_uninstaller = os.path.join(USER_PATH, _asset_sys_params["project_dir"], _asset_sys_params["execs_path"], _asset_sys_params["uninstaller"])
+            _uninstaller_bn = os.path.basename(_asset_uninstaller)
+            _tmp_uninstaller = os.path.join(USER_PATH, f'{int(time.time())}{_uninstaller_bn}')
+            if os.path.isfile(_asset_uninstaller):
+                _tmp_file_lines += [
+                    f"{_log_prefix}Uninstalling '{_model}'...>>{LOG_PATH}\n",
+                    f"{_copy}{_asset_uninstaller} {_tmp_uninstaller}\n",
+                    f'{_start_cmd}{_tmp_uninstaller} {" ".join(_asset_sys_params["uninstaller_args"] if "uninstaller_args" in _asset_sys_params and _asset_sys_params["uninstaller_args"] else [])}{f" /automatic {USER_PATH}" if self.system=="win" else " -a" if self.system=="lin" else ""}\n',
+                    f'{_rm}{_tmp_uninstaller} {_noecho}\n'
+                ]
+
+
+        # 3 - Download + Uncompress to target folder <- Required Models
+        for _count, _model in enumerate(model_ids):
+            _asset_params=self.latest_services_config["services_params"][_model]
+            _asset_sys_params=_asset_params[self.system]
+            _asset_repo=_asset_params["source_code"]
+            _asset_commit=_asset_sys_params["commit"]
+            _asset_project_dir = os.path.join(USER_PATH, _asset_sys_params["install_dir"] if "install_dir" in _asset_sys_params else _asset_sys_params["project_dir"])
+            _tmp_repo_dwnld_path=os.path.join(USER_PATH, f"DeRunner_Dwnld_{_count}.zip")
+            ## Download Commands
+            if self.system == "win":
+                _mkdir="mkdir "
+                _download_cmd=f'powershell -command "Invoke-WebRequest -Uri {_asset_repo}/archive/{_asset_commit}.zip -OutFile {_tmp_repo_dwnld_path}"\n'
+                _uncompress_cmd=f'tar -xzvf {_tmp_repo_dwnld_path} -C {_asset_project_dir} --strip-components 1\n'
+            elif self.system=="lin":
+                _mkdir="mkdir -p "
+                _download_cmd=f'wget {_asset_repo}/archive/{_asset_commit}.zip -O {_tmp_repo_dwnld_path}\n'
+                _uncompress_cmd=f'apt install libarchive-tools -y && bsdtar -xzvf {_tmp_repo_dwnld_path} -C {_asset_project_dir} --strip-components=1\n'
+            _tmp_file_lines += [
+                f"{_log_prefix}Downlading '{_model}'... >>{LOG_PATH}\n",
+                f"{_mkdir}{_asset_project_dir}\n", # Create Asset Folder
+                _download_cmd,
+                _uncompress_cmd,
+                f'{_rm}{_tmp_repo_dwnld_path} {_noecho}\n'
+            ]
+
+
+        # 4 - Setup <- Required Models
+        for _count, _model in enumerate(model_ids):
+            _asset_sys_params=self.latest_services_config["services_params"][_model][self.system]
+            _asset_setup = os.path.join(USER_PATH, _asset_sys_params["project_dir"], _asset_sys_params["execs_path"], _asset_sys_params["setup"])
+            _tmp_file_lines += [
+                    f"{_log_prefix}Installing '{_model}'... >>{LOG_PATH}\n",
+                    f'{_start_cmd}{_asset_setup} {" ".join(_asset_sys_params["setup_args"] if "setup_args" in _asset_sys_params and _asset_sys_params["setup_args"] else [])}\n'
+                ]
+            if progress != None and _count != len(model_ids) - 1:
+                _tmp_file_lines.append(f'echo {_count+1} > {progress}\n')
+            _tmp_file_lines.append(f'echo {_model} >> {asset_sucess_path}\n')
+                
+        if progress != None:
+            _tmp_file_lines.append(f'echo {len(model_ids)} > {progress}\n')
+
+        # 5 - Start `run_constantly` Models <- Required Models
+        for _model in model_ids:
+            if _model == "desotaai/derunner":
+                continue
+            _asset_params=self.latest_services_config["services_params"][_model]
+            _asset_sys_params=_asset_params[self.system]
+            if _asset_params["run_constantly"]:
+                _asset_start = os.path.join(USER_PATH, _asset_sys_params["project_dir"], _asset_sys_params["execs_path"], _asset_sys_params["starter"])
+                _tmp_file_lines += [
+                    f"{_log_prefix}Starting '{_model}'... >>{LOG_PATH}\n",
+                    f'{_start_cmd}{_asset_start}\n'
+                ]
+
+        
+        #     Update user.config model && services.config model
+        #     Everything relies on what is writen into `asset_sucess_path`
+        open(asset_sucess_path, "w").close # Clean
+        _tmp_file_lines += _manage_configs_loop
+
+        #     _model_version=_asset_sys_params["version"]
+        #     _new_model = json.dumps({
+        #         _model: _model_version
+        #     }).replace(" ", "").replace('"', '\\"')
+        #     _manager_set_user_confs = os.path.join(APP_PATH, "Tools", "SetUserConfigs.py")
+        #     _tmp_file_lines.append(f'{_call}{_app_python} {_manager_set_user_confs} --key models --value "{_new_model}"{_noecho}\n')
+    
+        # ## 5.1 - after asset instalation!!
+        # #   > Update Services Config with params from Latest Services Config
+        # _app_after_model_reinstall = os.path.join(APP_PATH, "Tools", "after_model_reinstall.py")
+        # _tmp_file_lines.append(f'{_call}{_app_python} {_app_after_model_reinstall}{_noecho}\n')
+        
+        # Force DeRunner Restart
+        if "desotaai/derunner" not in model_ids:
+            _asset_sys_params=self.latest_services_config["services_params"]["desotaai/derunner"][self.system]
+            _derunner_start = os.path.join(USER_PATH, _asset_sys_params["project_dir"], _asset_sys_params["execs_path"], _asset_sys_params["starter"])
+            if os.path.isfile(_derunner_start):
+                _tmp_file_lines += [
+                    f"{_log_prefix}Restarting DeRunner... >>{LOG_PATH}\n",
+                    f'{_start_cmd}{_derunner_start}\n'
+                ]
+
+
+        ## END OF FILE - Delete Bat at end of instalation 
+        ### WINDOWS - retrieved from https://stackoverflow.com/a/20333152
+        ### LINUX   - ...
+        #DEBUG
+        #_tmp_file_lines.append('(goto) 2>nul & del "%~f0"\n'if self.system == "win" else f'rm -rf {target_path}\n' if self.system == "lin" else "")
+        _tmp_file_lines.append('exit\n')
+
+
+        # 6 - Create Installer Bat
+        with open(target_path, "w") as fw:
+            fw.writelines(_tmp_file_lines)
+        self.user_chown(target_path)
+        return target_path
+
+    def create_asset_uninstall_script(self, model_ids, manage_configs_flag_path) -> str:
+        '''
+        Create models uninstalation script
+
+        return sript path
+        '''
+        
+        # 1 - INIT + Scripts HEADER
+        if self.system == "win":
+            '''I'm a windows nerd!'''
+            # Init
+            target_path = os.path.join(TMP_PATH, f"tmp_model_uninstall{int(time.time())}.bat")
+            _start_cmd="start /W "
+            _copy = "copy "
+            _rm = "del "
+            _noecho=" >NUL 2>NUL"
+            _log_prefix = "ECHO DeManagerTools.Uninstall - "
+            _manage_configs_loop = [
+                f"ECHO 0 >{manage_configs_flag_path}\n",
+                ":wait4demanager",
+                f"SET /p fmanager=<{manage_configs_flag_path}"
+                "IF NOT %fmanager% == 1 GOTO wait4demanager"
+            ]
+            
+            # 1 - BAT HEADER
+            _tmp_file_lines = ["@ECHO OFF\n"]
+            _tmp_file_lines += GET_WIN_ADMIN
+            
+            # 1.1 - Wait DeRunner Service STOP
+            derunner_stop_path = os.path.join(USER_PATH, "DeRunner", "executables", "Windows", "derunner.stop.bat")
+            derunner_status_path = os.path.join(USER_PATH, "DeRunner", "executables", "Windows", "derunner.status.bat")
+            if os.path.isfile(derunner_stop_path):
+                _tmp_file_lines += [
+                    ":wait_derunner_stop\n",
+                    f"start /W {derunner_stop_path}"
+                    f'FOR /F "tokens=*" %%g IN (\'{derunner_status_path} /nopause\') do (SET derunner_status=%%g)\n',
+                    "IF %derunner_status% EQU SERVICE_RUNNING GOTO wait_derunner_stop\n"
+                ]
+        elif self.system=="lin":
+            '''I know what i'm doing '''
+            # Init
+            target_path = os.path.join(TMP_PATH, f"tmp_model_uninstall{int(time.time())}.bash")
+            _start_cmd="bash "
+            _copy = "cp "
+            _rm = "rm -rf "
+            _noecho=" &>/dev/nul"
+            _log_prefix = "echo DeManagerTools.Uninstall - "
+            # _app_python = os.path.join(APP_PATH, "env", "bin", "python3")
+
+             # 1 - BASH HEADER
+            _tmp_file_lines = ["#!/bin/bash\n"]
+            
+            # 1.1 - Wait DeRunner Service STOP
+            derunner_stop_path = os.path.join(USER_PATH, "DeRunner", "executables", "Linux", "derunner.stop.bash")
+            derunner_status_path = os.path.join(USER_PATH, "DeRunner", "executables", "Linux", "derunner.status.bash")
+            if os.path.isfile(derunner_stop_path):
+                _tmp_file_lines += [
+                    f"_serv_status=$(bash {derunner_status_path})\n",
+                    'while [ "$_serv_status" = "SERVICE_RUNNING" ]\n',
+                    "do\n",
+                    f"\tbash {derunner_stop_path}"
+                    f"\t_serv_status=$(bash {derunner_status_path})\n",
+                    "done\n",
+                ]
+
+        if isinstance(model_ids, str):
+            model_ids = [model_ids]
+        if isinstance(model_ids, dict):
+            model_ids = list(model_ids.keys())
+        if not isinstance(model_ids, list):
+            return None
+        
+        # 2 - Uninstall <- Required Models
+        for _model in model_ids:
+            _asset_sys_params=self.services_config["services_params"][_model][self.system]
+            _asset_uninstaller = os.path.join(USER_PATH, _asset_sys_params["project_dir"], _asset_sys_params["execs_path"], _asset_sys_params["uninstaller"])
+            _uninstaller_bn = os.path.basename(_asset_uninstaller)
+            _tmp_uninstaller = os.path.join(USER_PATH, f'{int(time.time())}{_uninstaller_bn}')
+            if os.path.isfile(_asset_uninstaller):
+                _tmp_file_lines += [
+                    f"{_log_prefix}Uninstalling '{_model}'...>>{LOG_PATH}\n",
+                    f"{_copy}{_asset_uninstaller} {_tmp_uninstaller}\n",
+                    f'{_start_cmd}{_tmp_uninstaller} {" ".join(_asset_sys_params["uninstaller_args"] if "uninstaller_args" in _asset_sys_params and _asset_sys_params["uninstaller_args"] else [])}{f" /automatic {USER_PATH}" if self.system=="win" else " -a" if self.system=="lin" else ""}\n',
+                    f'{_rm}{_tmp_uninstaller} {_noecho}\n'
+                ]
+
+        #     Update user.config model && services.config model
+        _tmp_file_lines += _manage_configs_loop
+
+        # Force DeRunner Restart
+        if "desotaai/derunner" not in model_ids:
+            _asset_sys_params=self.latest_services_config["services_params"]["desotaai/derunner"][self.system]
+            _derunner_start = os.path.join(USER_PATH, _asset_sys_params["project_dir"], _asset_sys_params["execs_path"], _asset_sys_params["starter"])
+            if os.path.isfile(_derunner_start):
+                _tmp_file_lines += [
+                    f"{_log_prefix}Restarting DeRunner... >>{LOG_PATH}\n",
+                    f'{_start_cmd}{_derunner_start}\n'
+                ]
+
+        ## END OF FILE - Delete Bat at end of instalation 
+        ### WINDOWS - retrieved from https://stackoverflow.com/a/20333152
+        ### LINUX   - ...
+        #DEBUG
+        #_tmp_file_lines.append('(goto) 2>nul & del "%~f0"\n'if self.system == "win" else f'rm -rf {target_path}\n' if self.system == "lin" else "")
+        _tmp_file_lines.append('exit\n')
+
+        # 6 - Create Uninstaller Script
+        with open(target_path, "w") as fw:
+            fw.writelines(_tmp_file_lines)
+        self.user_chown(target_path)
+        return target_path
+
+    def create_asset_startstop_script(self, model_ids, state) -> str:
+        '''
+        Create models start|stop script
+
+        state argument [bool]:
+
+            False = Stop
+
+            True = Start
+
+        return sript path
+        '''
+        
+        # 1 - INIT + Scripts HEADER
+        if self.system == "win":
+            '''I'm a windows nerd!'''
+            # Init
+            target_path = os.path.join(TMP_PATH, f"tmp_model_install{int(time.time())}.bat")
+            _start_cmd="start /W "
+            _log_prefix = "ECHO DeManagerTools." + "Stop" if not state else "Start" +  " - "
+            # _app_python = os.path.join(APP_PATH, "env", "python")
+            # 1 - BAT HEADER
+            _tmp_file_lines = ["@ECHO OFF\n"]
+            _tmp_file_lines += GET_WIN_ADMIN
+        elif self.system=="lin":
+            '''I know what i'm doing '''
+            # Init
+            target_path = os.path.join(TMP_PATH, f"tmp_model_install{int(time.time())}.bash")
+            _start_cmd="bash "
+            _log_prefix = "echo DeManagerTools." + "Stop" if not state else "Start" +  " - "
+            # _app_python = os.path.join(APP_PATH, "env", "bin", "python3")
+
+             # 1 - BASH HEADER
+            _tmp_file_lines = ["#!/bin/bash\n"]
+
+        if isinstance(model_ids, str):
+            model_ids = [model_ids]
+        if isinstance(model_ids, dict):
+            model_ids = list(model_ids.keys())
+        if not isinstance(model_ids, list):
+            return None
+        
+        # 2 - Start|Stop <- Required Models
+        for _model in model_ids:
+            _asset_sys_params=self.services_config["services_params"][_model][self.system]
+            if state:
+                _log="Starting"
+                _asset_state = os.path.join(USER_PATH, _asset_sys_params["project_dir"], _asset_sys_params["execs_path"], _asset_sys_params["starter"])
+            else:
+                _log="Stoping"
+                _asset_state = os.path.join(USER_PATH, _asset_sys_params["project_dir"], _asset_sys_params["execs_path"], _asset_sys_params["stoper"])
+
+            if os.path.isfile(_asset_state):
+                _tmp_file_lines += [
+                    f"{_log_prefix}{_log} '{_model}'...>>{LOG_PATH}\n",
+                    f'{_start_cmd}{_asset_state}\n',
+                ]
+
+        ## END OF FILE - Delete Bat at end of instalation 
+        ### WINDOWS - retrieved from https://stackoverflow.com/a/20333152
+        ### LINUX   - ...
+        #DEBUG
+        #_tmp_file_lines.append('(goto) 2>nul & del "%~f0"\n'if self.system == "win" else f'rm -rf {target_path}\n' if self.system == "lin" else "")
+        _tmp_file_lines.append('exit\n')
+
+        # 6 - Create Start|Stop Script
+        with open(target_path, "w") as fw:
+            fw.writelines(_tmp_file_lines)
+        self.user_chown(target_path)
+        return target_path
+
+    # Edit User Configs
+    def edit_user_configs(self, key, value, uninstall=False):
+        user_config = self.get_user_config()
+
+        # param "models" consist of the name of the model as key and is version as value
+        if key == "models":
+            # Get allready installed models
+            _old_models = user_config["models"]
+            # Instatiate result models
+            _res_models = dict(_old_models)
+
+            # Uninstall FLAG
+            if uninstall:
+                if isinstance(value, str):
+                    _rem_models = [value]
+                else:
+                    _rem_models = value
+                for _model in _rem_models:
+                    if _model in _res_models:
+                        _res_models.pop(_model)
+            else:
+                _new_models = value
+                if not _old_models:
+                    _old_models = {}
+                for _model, _version in _new_models.items():
+                    if _model in _res_models:
+                        if _res_models[_model] == _version:
+                            continue
+                        _res_models[_model] = _version
+                        continue
+                    _res_models.update({_model:_version})
+
+            # Update user_config `models`
+            user_config[key] = _res_models
+        else:
+            user_config[key] = value
+        
+        with open(USER_CONFIG_PATH, 'w',) as fw:
+            yaml.dump(user_config,fw,sort_keys=False)
+    
+    # Edit Services Configs
+    def upd_services_params(self):
+        '''
+        Update Services Config with params from Latest Services Config
+        
+        Updates based on User Config Models, so, edit it before calling this funk
+        '''
+        _res_serv_conf, _ = self.get_services_config(ignore_update=True)
+        _res_serv_conf["services_params"]={}
+        
+        _user_models = self.get_user_config()["models"]
+        for model_id, model_v in _user_models.items():
+            _last_service_params = self.latest_services_config["services_params"]
+            if _last_service_params[model_id][self.system]["version"] == model_v or model_id not in _res_serv_conf["services_params"]:
+                _res_serv_conf["services_params"][model_id] = _last_service_params[model_id]
+            if "child_models" in _res_serv_conf["services_params"][model_id] and _res_serv_conf["services_params"][model_id]["child_models"]:
+                for child in _res_serv_conf["services_params"][model_id]["child_models"]:
+                    if child in _last_service_params:
+                        _res_serv_conf["services_params"][child] = _last_service_params[child]
+
+        with open(SERVICES_CONFIG_PATH, 'w',) as fw:
+            yaml.dump(_res_serv_conf,fw,sort_keys=False)
+
+        return
+
+
     # TAB Constructors
     # TAB 1 - Models Dashboard
     def get_tools_data(self, search_filter=None):
@@ -349,10 +841,20 @@ class SGui():
         for _k, _v in self.user_config['models'].items():
             if _k not in self.tools_services:
                 continue
+            print("          Tool ID  :", _k)
             _tool_params = self.services_config["services_params"][_k]
+            _tool_sys_params = _tool_params[self.system]
             _tool_desc = _tool_params["short_description"]
-            _tool_status_path = os.path.join(USER_PATH, _tool_params[self.system]["service_path"], _tool_params[self.system]["status"]) if _tool_params[self.system]["status"] else None
-            _tool_status = self.get_service_status(_tool_status_path).lower() if _tool_status_path else "Not Service"
+            print("          Tool Desc:", _tool_desc)
+            _tool_status_path = os.path.join(USER_PATH, _tool_sys_params["project_dir"], _tool_sys_params["execs_path"], _tool_sys_params["status"]) if _tool_sys_params["status"] else None
+
+            if _tool_status_path==None:
+                _tool_status = "-"
+            else:
+                _tool_status = self.get_service_status(_tool_status_path).lower()
+                _tool_status = "-" if _tool_status==None else _tool_status
+            print("          Tool Stat:", _tool_status, "\n")
+
             if search_filter:
                 if search_filter.lower() in _k.lower() or search_filter.lower() in _tool_desc.lower():
                     _tools_data.append([_k, _tool_status, _tool_desc])
@@ -360,6 +862,7 @@ class SGui():
             else:
                 _tools_data.append([_k, _tool_status, _tool_desc])
                 _tools.append(_k)
+        print("          Tool Filt:", search_filter, "\n")
             
         return _tools_data, _tools
     def get_models_data(self, search_filter=None):
@@ -368,21 +871,32 @@ class SGui():
         for _k, _v in self.user_config['models'].items():
             if _k in self.tools_services:
                 continue
-            _tool_params = self.services_config["services_params"][_k]
-            _tool_desc = _tool_params["short_description"]
-            _tool_status_path = os.path.join(USER_PATH, _tool_params[self.system]["service_path"], _tool_params[self.system]["status"]) if _tool_params[self.system]["status"] else None
-            _tool_status = self.get_service_status(_tool_status_path).lower() if _tool_status_path else "Not a Service"
+            print("          Model ID  :", _k)
+            _model_params = self.services_config["services_params"][_k]
+            _model_sys_params = _model_params[self.system]
+            _model_desc = _model_params["short_description"]
+            print("          Model Desc:", _model_desc)
+            _model_status_path = os.path.join(USER_PATH, _model_sys_params["project_dir"], _model_sys_params["execs_path"], _model_sys_params["status"]) if "status" in _model_sys_params and _model_sys_params["status"] else None
+            if _model_status_path==None:
+                _model_status = "-"
+            else:
+                _model_status = self.get_service_status(_model_status_path).lower()
+                _model_status = "-" if _model_status==None else _model_status
+            print("          Model Stat:", _model_status, "\n")
+
             if search_filter:
-                if search_filter.lower() in _k.lower() or search_filter.lower() in _tool_desc.lower():
-                    _models_data.append([_k, _tool_status, _tool_desc])
+                if search_filter.lower() in _k.lower() or search_filter.lower() in _model_desc.lower():
+                    _models_data.append([_k, _model_status, _model_desc])
                     _models.append(_k)
             else:
-                _models_data.append([_k, _tool_status, _tool_desc])
+                _models_data.append([_k, _model_status, _model_desc])
                 _models.append(_k)
+        print("          Model Filt:", search_filter, "\n")
         return _models_data, _models
     def construct_monitor_models_tab(self):
         # No Models Available
         if not self.user_config['models']:
+            print("        No Models found in user congigurations")
             self.exist_dash = False
             return [
                 [psg.Text('No Model Installed', font=self.header_f)],
@@ -393,6 +907,7 @@ class SGui():
             self.exist_dash = True
             _dashboard_layout = []
             # Tools Table
+            print("        Getting tools data")
             _tools_data, _tools = self.get_tools_data()
             if _tools_data:
                 _tool_table_header = ["Tool", "Service Status", "Description"]
@@ -415,6 +930,7 @@ class SGui():
                 # _dashboard_layout.append([psg.Graph()]) #TODO
             
             # Models Table
+            print("        Getting models data")
             _models_data, _models = self.get_models_data()
             if _models_data:
                 _model_table_header = ["AI Model", "Service Status", "Description"]
@@ -439,6 +955,7 @@ class SGui():
             self.set_installed_services(user_tools=_tools, user_models=_models)
 
             # Handle Stop Manual Services
+            print("        Getting started manual models")
             _started_malual_services = self.get_started_manual_services()
             if _started_malual_services:
                 _disabled = False
@@ -447,13 +964,14 @@ class SGui():
             
             ## DeRunner Logger
             if "desotaai/derunner" in _tools:
+                print("        Setting Log Multiline feature")
                 self.exist_derunner = True
                 # _dashboard_layout.append([psg.Text('DeRunner Logger', font=self.header_f)])
                 # _dashboard_layout.append([psg.Multiline(size=(None, 10), reroute_cprint=True, key='derunner_log', expand_x=True, expand_y=False)])
                 return [
                     [psg.Input("Search", key='searchDash', expand_x=True)],
-                    [psg.Text('DeSOTA  Requests ▼', tooltip="live log of models requests", key="derunner_log_head", enable_events=True, font=self.title_f)],
-                    [psg.Multiline(size=(None, 8), reroute_cprint=True, key='derunner_log', expand_x=True, expand_y=False), psg.Text('', key="derunner_log_clear", visible=False)],
+                    [psg.Text('DeSOTA  Log ▲', tooltip="live log of models requests", key="derunner_log_head", enable_events=True, font=self.title_f)],
+                    [psg.Multiline(size=(None, 8), reroute_cprint=True, key='derunner_log', expand_x=True, expand_y=False, visible=False), psg.Text('', key="derunner_log_clear", visible=True)],
                     [psg.Column(_dashboard_layout, size=(800, 238), scrollable=True, key="_SCROLL_COL1_")],
                     [
                         psg.Button('Take a Peek', button_color=("Green","White"), key="openModelUI", pad=(5, 0)), 
@@ -473,7 +991,7 @@ class SGui():
                         psg.Button('Uninstall', button_color=("Red","White"), key="startUninstall", pad=(5, 0))
                     ]
                 ]
-    
+
 
     # TAB 2 - Models Instalation
     def create_elem_key(self, key, identity):
@@ -551,8 +1069,8 @@ class SGui():
              
         for count, (_desota_serv, _cb_disabled) in enumerate(self.tools_services.items()):
             if not self.user_config['models'] or _desota_serv not in self.user_config['models']:
-                _desc = self.services_config["services_params"][_desota_serv]["short_description"]
-                _source = self.services_config["services_params"][_desota_serv]["source_code"]
+                _desc = self.latest_services_config["services_params"][_desota_serv]["short_description"]
+                _source = self.latest_services_config["services_params"][_desota_serv]["source_code"]
                 
                 if not search_filter or (search_filter.lower() in _desota_serv.lower() or search_filter.lower() in _desc):
                     if get_layout:
@@ -859,7 +1377,6 @@ class SGui():
             ]
 
 
-
     # Methods
     # - Move Within Tkinter Tabs
     def move_2_tab(self, tab_name):
@@ -884,6 +1401,7 @@ class SGui():
     def install_models(self, values):
         _models_2_install = []
         _models_2_upgrade = []
+        _time = int(time.time())
         for _k, _v in values.items():
             if isinstance(_k, str) and "SERVICE" in _k and _v:
                 _models_2_install.append(_k.split(' ')[1].strip())
@@ -903,54 +1421,81 @@ class SGui():
             print("OK RES", _ok_res)
             return "-ignore-"
         
+        _install_prog_file = os.path.join(APP_PATH, "install_progress.txt")
+        _wait_path=os.path.join(TMP_PATH, f"{_time}install_waiter.txt")
+        _sucess_path=os.path.join(TMP_PATH, f"{_time}install_result.txt")
+        _install_script_path = self.create_asset_install_script(_models_2_upgrade, _wait_path, _sucess_path, progress=_install_prog_file)
+        if not os.path.isfile(_install_script_path):
+            return "-ignore-"
         if self.system == "win":
-            wbm = WinBatManager(self.user_config, self.latest_services_config, _models_2_upgrade)
-            _installer_tmp_path = os.path.join(APP_PATH, "desota_tmp_installer.bat")
-            _install_prog_file = os.path.join(APP_PATH, "install_progress.txt")
-            wbm.create_models_instalation(_installer_tmp_path, _install_prog_file, start_install=True)
-            del wbm
+            _install_cmd=[_install_script_path]
+        elif self.system == "lin":
+            _install_cmd=["pkexec", "bash", _install_script_path]
             
-            self.root['startInstall'].update(disabled=True)
-            self.root['installPBAR'].update(current_count=0)
+        _child_proc = subprocess.Popen(_install_cmd)
             
-            _mem_prog = 0
-            while True:
-                if not os.path.isfile(_install_prog_file):
-                    _curr_prog_file = 0
-                else:
-                    with open(_install_prog_file, "r") as fr:
-                        _curr_prog_file = fr.read().replace("\n", "").strip()
-                        
-                if _curr_prog_file == "":
-                    _curr_prog_file = _mem_prog
-                else:
-                    _curr_prog_file = int(_curr_prog_file)
+        self.root['startInstall'].update(disabled=True)
+        self.root['installPBAR'].update(current_count=0)
+            
+        _mem_prog = 0
+        while True:
+            if not os.path.isfile(_install_prog_file):
+                _curr_prog_file = 0
+            else:
+                with open(_install_prog_file, "r") as fr:
+                    _curr_prog_file = fr.read().replace("\n", "").strip()
                     
-                if _mem_prog != _curr_prog_file:
-                    _mem_prog = _curr_prog_file
-                    
-                _curr_prog = (_curr_prog_file/_ammount_models) * 100
-                self.root['installPBAR'].update(current_count=_curr_prog)
+            if _curr_prog_file == "":
+                _curr_prog_file = _mem_prog
+            else:
+                _curr_prog_file = int(_curr_prog_file)
                 
-                if _curr_prog == 100:
-                    os.remove(_install_prog_file)
-                    break
-                    
-                _ml_res = self.main_loop(ignore_event=[], timeout=50)
-                #TODO : 
-                # if _ml_res == "-close-"
-                # if _ml_res == "-restart-"
-                # if _ml_res == "-ignore-"
+            if _mem_prog != _curr_prog_file:
+                _mem_prog = _curr_prog_file
+                
+            _curr_prog = (_curr_prog_file/_ammount_models) * 100
+            self.root['installPBAR'].update(current_count=_curr_prog)
             
-            if _models_2_upgrade:
-                for up_model in _models_2_upgrade:
-                    self.services_config["services_params"][up_model] = self.latest_services_config["services_params"][up_model]
-            self.set_services_config()
-            
-            self.user_config = self.get_user_config()
-            stop_wbm = WinBatManager(self.user_config, self.latest_services_config, self.user_config["models"])
-            stop_wbm.update_models_stopper(only_selected=True)
-            del stop_wbm
+            if os.path.isfile(_wait_path):
+                with open(_wait_path, "r") as fr:
+                    _wait_state_read = fr.read().replace("\n", "").strip()
+                if _wait_state_read == "0":
+                    with open(_sucess_path, "r") as fr:
+                        _install_res = fr.read().splitlines()
+                    print("SUCESS CONTENT:", _install_res)
+                    if _install_res:
+                        # Create dict with model, version pairs
+                        _install_conf= {}
+                        for _line in _install_res:
+                            _model=_line.strip()
+                            # if _model in self.latest_services_config["services_params"]:
+                            _new_version = self.latest_services_config["services_params"][_model][self.system]["version"]
+                            _install_conf[_model] = _new_version
+                            print("NEW USER MODELS:")
+                            print("    Model:", _model)
+                            print("  Version:", _new_version)
+                        if _install_conf:
+                            self.edit_user_configs("models", _install_conf)
+                            self.upd_services_params()
+                    while True:
+                        try:
+                            with open(_wait_path, "w") as fw:
+                                fw.write("1")
+                            break
+                        except:
+                            continue
+
+            if _child_proc.poll() == 0:
+                os.remove(_install_prog_file)
+                os.remove(_wait_path)
+                # os.remove(_sucess_path)
+                break
+                
+            _ml_res = self.main_loop(ignore_event=[], timeout=50)
+            #TODO : 
+            # if _ml_res == "-close-"
+            # if _ml_res == "-restart-"
+            # if _ml_res == "-ignore-"
             
         _ok_res = psg.popup_ok(f"Instalation Completed!\n\nThe APP will restart!\n\nPress Ok to proceed", title="", icon=self.icon)
         if not _ok_res:
@@ -992,11 +1537,13 @@ class SGui():
     def update_service_config(self, values):
         try:
             _curr_serv_conf, _last_serv_conf = self.get_services_config()
-            self.services_config, self.latest_services_config = _curr_serv_conf, _last_serv_conf
             
-            if self.services_config["services_params"] == self.latest_services_config["services_params"]:
+            if _last_serv_conf["services_params"] == self.latest_services_config["services_params"]:
                 psg.popup("You are currently up to date!\n", title="", icon=self.icon)
                 return "-ignore-"
+
+            self.services_config, self.latest_services_config = _curr_serv_conf, _last_serv_conf
+
             _ok_res = psg.popup_ok("The APP will restart with Updated Models\n\nPress Ok to proceed", title="", icon=self.icon)
             if _ok_res:
                 return "-restart-"
@@ -1028,13 +1575,14 @@ class SGui():
     # - Open Tools / Models Interface
     def model_ui_handle(self, model_name):
         _res = None
-        if "model_ui" in self.services_config["services_params"][model_name] and self.services_config["services_params"][model_name]["model_ui"]:
-            _model_params = self.services_config["services_params"][model_name]
+        _model_params = self.services_config["services_params"][model_name]
+        _model_sys_params = _model_params[self.system]
+        if "model_ui" in _model_params and _model_params["model_ui"]:
             _model_ui_url = _model_params["model_ui"]
             _model_req_hs = _model_params["handshake_req"]
             _model_res_hs = _model_params["handshake_res"]
 
-            if self.services_config["services_params"][model_name]["run_constantly"]:
+            if _model_params["run_constantly"]:
                 try:
                     _hs_req = requests.get(_model_req_hs)
                     if _hs_req.status_code == 200 and _hs_req.json() == _model_res_hs:
@@ -1044,8 +1592,12 @@ class SGui():
                     pass
 
                 #Start Run Constantly Services
-                _start_run_constantly_serv_path = os.path.join(CONFIG_FOLDER, "Services", "models_starter.bat")
-                _sproc = subprocess.Popen([_start_run_constantly_serv_path])
+                _start_run_constantly_serv_path = os.path.join(USER_PATH, _model_sys_params["project_dir"], _model_sys_params["execs_path"], _model_sys_params["starter"])
+                if self.system == "win":
+                    _sproc = subprocess.Popen([_start_run_constantly_serv_path])
+                elif self.system == "lin":
+                    _sproc = subprocess.Popen(["pkexec", "bash", _start_run_constantly_serv_path])
+
                 _res = "-restart-"
                 while True:
                     try:
@@ -1084,20 +1636,17 @@ class SGui():
                 if model_name not in _started_manual_services:
                     _started_manual_services.append(f"{model_name}\n")
 
-                with open(self.started_manual_services_file, "w") as fw:
-                    fw.writelines(_started_manual_services)
+                self.set_started_manual_services(_started_manual_services)
 
                 self.root['stopManualServices'].update(disabled=False)
                 #Start Service!
-                _res = "-restart-"
-                _model_serv_params = self.services_config["services_params"][model_name][self.system]
-                _model_service_start_path = os.path.join(
-                    USER_PATH, 
-                    _model_serv_params["service_path"],
-                    _model_serv_params["starter"]
-                )
-                _sproc = subprocess.Popen([_model_service_start_path])
+                _start_run_constantly_serv_path = os.path.join(USER_PATH, _model_sys_params["project_dir"], _model_sys_params["execs_path"], _model_sys_params["starter"])
+                if self.system == "win":
+                    _sproc = subprocess.Popen([_start_run_constantly_serv_path])
+                elif self.system == "lin":
+                    _sproc = subprocess.Popen(["pkexec", "bash", _start_run_constantly_serv_path])
 
+                _res = "-restart-"
                 while True:
                     try:
                         if _sproc.poll() == 0:
@@ -1113,9 +1662,9 @@ class SGui():
                     # if _ml_res == "-restart-"
                     # if _ml_res == "-ignore-"
         
-        elif  "model_cli" in self.services_config["services_params"][model_name] and self.services_config["services_params"][model_name]["model_cli"]:
+        elif  "model_cli" in _model_params and _model_params["model_cli"]:
             cli_cmd = []
-            for mc in self.services_config["services_params"][model_name][self.system][self.services_config["services_params"][model_name]["model_cli"]]:
+            for mc in _model_params[self.system][_model_params["model_cli"]]:
                 # PATH TEST (get files and arguments)
                 _tmp_path = os.path.join(USER_PATH, mc)
                 if os.path.isfile(_tmp_path):
@@ -1155,10 +1704,10 @@ class SGui():
     # - Uninstall Service
     def uninstall_services(self, values):
         _models_2_uninstall = []
+        _time=int(time.time())
         if "tool_table" in values:
             for _row in values["tool_table"]:
                 _models_2_uninstall.append(self.user_tools[_row])
-
 
         if "model_table" in values:
             for _row in values["model_table"]:
@@ -1176,51 +1725,47 @@ class SGui():
         if _str_serv != "Yes":
             return "-ignore-"
         
-        _after_un_models = self.user_config["models"].copy()
-        for _model in _models_2_uninstall:
-            _after_un_models.pop(_model)
-
-        if not _after_un_models:
-            _after_un_models = None
+        # - UNINSTALL CONFIRMED BELLOW
         
         if self.system == "win":
-            # Get user_config to update model starter
-            if _after_un_models:
-                self.user_config["models"] = _after_un_models.copy()
-            else:
-                self.user_config["models"] = _after_un_models
-                
-            end_wbm = WinBatManager(self.user_config, self.services_config, self.user_config["models"])
-            end_wbm.update_models_starter()
-            
-            wbm = WinBatManager(self.user_config, self.services_config, _models_2_uninstall)
-            uninstall_waiter_path = os.path.join(APP_PATH, f"tmp_uninstaller_status{time.time()}.txt")
-            wbm.create_services_unintalation(start_uninstall=True, waiter={uninstall_waiter_path: 1})
-            del wbm
-            
-            while True:
-                if os.path.isfile(uninstall_waiter_path):
-                    with open(uninstall_waiter_path, "r") as fr:
-                        _waiter_res = fr.read().replace("\n", "").strip()
-                    if _waiter_res == "1":
-                        break
-                _ml_res = self.main_loop(ignore_event=[], timeout=50)
-                #TODO : 
-                # if _ml_res == "-close-"
-                # if _ml_res == "-restart-"
-                # if _ml_res == "-ignore-"
+            _cmd_prefix=[]
+        if self.system == "lin":
+            _cmd_prefix=["pkexec", "bash"]
 
-            
-            os.remove(uninstall_waiter_path)
-            
-            end_wbm.update_models_stopper()
-            del end_wbm
-            
-            with open(os.path.join(CONFIG_FOLDER, "user.config.yaml"), 'w',) as fw:
-                yaml.dump(self.user_config,fw,sort_keys=False)
-            
+        
+        _wait_path=os.path.join(TMP_PATH, f"{_time}uninstall_waiter.txt")
+        _uninstall_script_path = self.create_asset_uninstall_script(_models_2_uninstall, _wait_path)
+        _uninstall_cmd = _cmd_prefix + [_uninstall_script_path]
+        if not os.path.isfile(_uninstall_script_path):
+            return "-ignore-"
 
-        self.set_installed_services()
+        _child_proc = subprocess.Popen(_uninstall_cmd)
+        while True:
+            if os.path.isfile(_wait_path):
+                with open(_wait_path, "r") as fr:
+                    _wait_state_read = fr.read().replace("\n", "").strip()
+                if _wait_state_read == "0":
+                    self.edit_user_configs("models", _models_2_uninstall, uninstall=True)
+                    self.upd_services_params()
+                    while True:
+                        try:
+                            with open(_wait_path, "w") as fw:
+                                fw.write("1")
+                            break
+                        except:
+                            continue
+
+            if _child_proc.poll() == 0:
+                os.remove(_wait_path)
+                break
+            
+            _ml_res = self.main_loop(ignore_event=[], timeout=50)
+            #TODO : 
+            # if _ml_res == "-close-"
+            # if _ml_res == "-restart-"
+            # if _ml_res == "-ignore-"
+
+        # self.set_installed_services()
         _ok_res = psg.popup("Uninstalation Completed!\n\nThe APP need to restart!\nPress Ok to proceed", title="", icon=self.icon)
         if not _ok_res:
             return "-ignore-"
@@ -1238,14 +1783,21 @@ class SGui():
             title="", 
             icon=self.icon
         )
-        print(f" [ TODO ] -> _popup_ok = {_popup_ok} ")
         if not _popup_ok:
             return "-ignore-"
         
-        wbm = WinBatManager(self.user_config, self.services_config, _started_manual_services)
-        _target_tmp_stopper = os.path.join(APP_PATH, f"tmp_manual_services_stopper{time.time()}.bat")
-        wbm.update_models_stopper(only_selected=True, tmp_bat_target=_target_tmp_stopper)
-        _sproc = subprocess.Popen([_target_tmp_stopper])
+        if self.system == "win":
+            _cmd_prefix=[]
+        if self.system == "lin":
+            _cmd_prefix=["pkexec", "bash"]
+        
+        for model in _started_manual_services:
+            _model_sys_params = self.services_config["services_params"][model][self.system]
+            _stop_model_path = os.path.join(USER_PATH, _model_sys_params["project_dir"], _model_sys_params["execs_path"], _model_sys_params["stoper"])
+        
+        _stop_model_path = self.create_asset_startstop_script(_started_manual_services, False)
+        _stop_model_cmd = _cmd_prefix + [_stop_model_path]
+        _sproc = subprocess.Popen(_stop_model_cmd)
         while True:
             if _sproc.poll() == 0:
                 break
@@ -1254,10 +1806,8 @@ class SGui():
             # if _ml_res == "-close-"
             # if _ml_res == "-restart-"
             # if _ml_res == "-ignore-"
-
-        wbm.update_models_stopper()
+                
         os.remove(self.started_manual_services_file)
-        os.remove(_target_tmp_stopper)
 
         return "-restart-"
     
@@ -1271,7 +1821,6 @@ class SGui():
         else:
             element.Widget.pack_propagate(0)
             element.set_size(size)
-
     def window_configure(self, values):
         # print(f"\n\n[ window_configure ] - Memory Size: {self.root_size}\n[ window_configure ] - Current Size: {self.root.size}\n\n")
         # print(f"{self.root_size} != {self.root.size} : {self.root_size != self.root.size}")
@@ -1280,7 +1829,10 @@ class SGui():
 
             # (865, 529)
             if self.user_config['models']:
-                self.column_set_size(self.root["_SCROLL_COL1_"], (_size_x-65, _size_y-317))
+                if self.derunner_fold:
+                    self.column_set_size(self.root["_SCROLL_COL1_"], (_size_x-65, _size_y-205))
+                else:
+                    self.column_set_size(self.root["_SCROLL_COL1_"], (_size_x-65, _size_y-317))
             if self.exist_installer:
                 self.column_set_size(self.root["_SCROLL_COL2_"], (_size_x-65, _size_y-150))
 
@@ -1355,7 +1907,7 @@ class SGui():
         _size_x, _size_y = self.root.size
         if self.derunner_fold:
             self.derunner_fold = False
-            _head.Update('DeSOTA Requests ▼')
+            _head.Update('DeSOTA  Log ▼')
             _body.Update(visible=True)
             _clear.Update(visible=False)
 
@@ -1363,12 +1915,13 @@ class SGui():
             self.column_set_size(self.root["_SCROLL_COL1_"], (_size_x-65, _size_y-317))
         else:
             self.derunner_fold = True
-            _head.Update('DeSOTA Requests ▲')
+            _head.Update('DeSOTA  Log ▲')
             _body.Update(visible=False)
             _clear.Update(visible=True)
             # RESIZE
             self.column_set_size(self.root["_SCROLL_COL1_"], (_size_x-65, _size_y-205))
         return "-done-"
+
 
     # Get Class Method From Event and Run Method
     def main_loop(self, ignore_event=[], timeout=None):
@@ -1376,23 +1929,24 @@ class SGui():
             # Check For APP UPGRADES
             if self.just_started:
                 self.just_started = False
-                _app_update, _app_curr_v, _app_last_v = self.get_app_update()
-                if _app_update:
-                    _app_upgrade = psg.popup_yes_no(
-                        f"New release of the `DeSOTA - Manager Tools` is available!\nCurrent version: {_app_curr_v}\nLatest version : {_app_last_v}\n\nDo you want to upgrade the `DeSOTA - Manager Tools`?",
-                        title="DeSOTA - Manager Tools",
-                        icon=self.icon,
-                    )
-                    if _app_upgrade == "Yes":
-                        wbm = WinBatManager(self.user_config, self.latest_services_config)
-                        wbm.upgrade_app(start_upgrade=True)
+                # TODO: UPDATE DeManagerTools
+                # _app_update, _app_curr_v, _app_last_v = self.get_app_update()
+                # if _app_update:
+                #     _app_upgrade = psg.popup_yes_no(
+                #         f"New release of the `DeSOTA - Manager Tools` is available!\nCurrent version: {_app_curr_v}\nLatest version : {_app_last_v}\n\nDo you want to upgrade the `DeSOTA - Manager Tools`?",
+                #         title="DeSOTA - Manager Tools",
+                #         icon=self.icon,
+                #     )
+                #     if _app_upgrade == "Yes":
+                #         wbm = WinBatManager(self.user_config, self.latest_services_config)
+                #         wbm.upgrade_app(start_upgrade=True)
 
-                        self.services_config["manager_params"] = self.latest_services_config["manager_params"]
-                        self.set_services_config()
+                #         self.services_config["manager_params"] = self.latest_services_config["manager_params"]
+                #         self.set_services_config()
 
-                        self.set_app_status(0)
-                        self.root.close()
-                        return "-close-"
+                #         self.set_app_status(0)
+                #         self.root.close()
+                #         return "-close-"
                     
             #Read  values entered by user
             _event, _values = self.root.read(timeout=timeout)
@@ -1402,13 +1956,6 @@ class SGui():
         if _event == psg.WIN_CLOSED:
             self.sgui_exit()
             return "-close-"
-        
-        # if _event == psg.TITLEBAR_MAXIMIZE_KEY:
-        #     if not self.root.maximized:
-        #         self.root.maximize()
-        #     else:
-        #         self.root.normal()
-        
         elif _event == psg.TIMEOUT_KEY:
             self.upddate_derunner_log()
             return "-timeout-"
@@ -1421,7 +1968,7 @@ class SGui():
         #access all the values and if selected add them to a string
         if DEBUG and _event != "windowConfigure":
             print(f" [ DEBUG ] -> event = {_event}")
-            print(f" [ DEBUG ] -> values = {_values}")
+            # print(f" [ DEBUG ] -> values = {_values}")
 
         try:    # Inspired in https://stackoverflow.com/questions/7936572/python-call-a-function-from-string-name
             # Analize Event
@@ -1452,10 +1999,11 @@ class SGui():
             raise KeyError(f"Event `{_res_event}` not found in `self.event_to_method`: {list(self.event_to_method.keys())}")
 
 
-
 def main():
+    print("DeManager Just Opened!")
     # Start APP
     sgui = SGui()
+    print("App Started!")
     # Get APP Status - Prevent Re-Open
     if sgui.get_app_status() == "1":
         _app_upgrade = psg.popup_yes_no(
@@ -1465,7 +2013,8 @@ def main():
         )
         if _app_upgrade != "Yes":
             return 0
-    sgui.set_app_status(1)
+    else:
+        sgui.set_app_status(1)
     _tab_selected = False
     _mem_open_tab = sgui.current_tab
     while True:
