@@ -635,16 +635,16 @@ class SGui():
             '''I'm a windows nerd!'''
             # Init
             target_path = os.path.join(TMP_PATH, f"tmp_model_uninstall{int(time.time())}.bat")
-            _start_cmd="start /W "
+            _start_cmd="start /W /B "
             _copy = "copy "
             _rm = "del "
             _noecho=" >NUL 2>NUL"
             _log_prefix = "ECHO DeManagerTools.Uninstall - "
             _manage_configs_loop = [
                 f"ECHO 0 >{manage_configs_flag_path}\n",
-                ":wait4demanager",
-                f"SET /p fmanager=<{manage_configs_flag_path}"
-                "IF NOT %fmanager% == 1 GOTO wait4demanager"
+                ":wait4demanager\n",
+                f"SET /p fmanager=<{manage_configs_flag_path}\n"
+                "IF NOT %fmanager% == 1 GOTO wait4demanager\n"
             ]
             
             # 1 - BAT HEADER
@@ -657,7 +657,7 @@ class SGui():
             if os.path.isfile(derunner_stop_path):
                 _tmp_file_lines += [
                     ":wait_derunner_stop\n",
-                    f"start /W {derunner_stop_path}"
+                    f"{_start_cmd}{derunner_stop_path}\n"
                     f'FOR /F "tokens=*" %%g IN (\'{derunner_status_path} /nopause\') do (SET derunner_status=%%g)\n',
                     "IF %derunner_status% EQU SERVICE_RUNNING GOTO wait_derunner_stop\n"
                 ]
@@ -680,11 +680,12 @@ class SGui():
             derunner_status_path = os.path.join(USER_PATH, "DeRunner", "executables", "Linux", "derunner.status.bash")
             if os.path.isfile(derunner_stop_path):
                 _tmp_file_lines += [
-                    f"_serv_status=$(bash {derunner_status_path})\n",
+                    f"_serv_status=$({_start_cmd}{derunner_status_path})\n",
                     'while [ "$_serv_status" = "SERVICE_RUNNING" ]\n',
                     "do\n",
-                    f"\tbash {derunner_stop_path}"
-                    f"\t_serv_status=$(bash {derunner_status_path})\n",
+                    "IF %derunner_status% EQU SERVICE_RUNNING GOTO wait_derunner_stop\n"
+                    f"\t{_start_cmd}{derunner_stop_path}\n",
+                    f"\t_serv_status=$({_start_cmd}{derunner_status_path})\n",
                     "done\n",
                 ]
 
@@ -710,7 +711,7 @@ class SGui():
                     f"{_log_prefix}Uninstalling '{_model}'...>>{LOG_PATH}\n",
                     f"{_copy}{_asset_uninstaller} {_tmp_uninstaller}\n",
                     f'{_start_cmd}{_tmp_uninstaller} {" ".join(_asset_sys_params["uninstaller_args"] if "uninstaller_args" in _asset_sys_params and _asset_sys_params["uninstaller_args"] else [])}{f" /automatic {USER_PATH}" if USER_SYS=="win" else " -a" if USER_SYS=="lin" else ""}\n',
-                    f'{_rm}{_tmp_uninstaller} {_noecho}\n'
+                    f'{_rm}{_tmp_uninstaller}{_noecho}\n'
                 ]
 
         #     Update user.config model && services.config model
@@ -718,6 +719,24 @@ class SGui():
 
         # Force DeRunner Restart
         _asset_sys_params=self.latest_services_config["services_params"]["desotaai/derunner"][USER_SYS]
+        _derunner_start = os.path.join(USER_PATH, _asset_sys_params["project_dir"], _asset_sys_params["execs_path"], _asset_sys_params["starter"])
+        f"{_log_prefix}Restarting DeRunner... >>{LOG_PATH}\n",
+        if USER_SYS == "win":
+            _tmp_file_lines += [
+                f' IF NOT EXIST {_derunner_start} GOTO noderunnerstart\n',
+                f'{_start_cmd}{_derunner_start}\n',
+                ":noderunnerstart\n"
+            ]
+        elif USER_SYS == "lin":
+            _tmp_file_lines += [
+                f'if [ -f "{_derunner_start}" ]; then\n',
+                f'\t{_start_cmd}{_derunner_start}\n',
+                "fi\n"
+            ]
+
+        ## END OF FILE
+        _tmp_file_lines.append('exit 0\n')
+        
         # 6 - Create Uninstaller Script
         with open(target_path, "w") as fw:
             fw.writelines(_tmp_file_lines)
@@ -742,7 +761,7 @@ class SGui():
             '''I'm a windows nerd!'''
             # Init
             target_path = os.path.join(TMP_PATH, f"tmp_model_install{int(time.time())}.bat")
-            _start_cmd="start /W "
+            _start_cmd="start /W /B "
             _log_prefix = "ECHO DeManagerTools." + "Stop" if not state else "Start" +  " - "
             # _app_python = os.path.join(APP_PATH, "env", "python")
             # 1 - BAT HEADER
