@@ -269,7 +269,9 @@ class SGui():
         
         with open(_target_status_res, "r") as fr:
             _status = fr.read().replace("\n", "").strip()
-        # os.remove(_target_status_res)
+        if os.path.isfile(_target_status_res):
+            os.remove(_target_status_res)
+        
         return _status
 
     def set_installed_services(self, user_tools=None, user_models=None):
@@ -322,8 +324,9 @@ class SGui():
                 _close_cmd=["bash", _stop_path]
             subprocess.call(_close_cmd)
         
-        os.remove(self.started_manual_services_file)
-
+        if os.path.isfile(self.started_manual_services_file):
+            os.remove(self.started_manual_services_file)
+        
         return "-done-"
 
     def get_services_config(self, ignore_update=False):
@@ -1488,9 +1491,9 @@ class SGui():
                             continue
 
             if _child_proc.poll() == 0:
-                os.remove(_install_prog_file)
-                os.remove(_wait_path)
-                # os.remove(_sucess_path)
+                for _file in [_install_prog_file, _wait_path, _sucess_path]:
+                    if os.path.isfile(_file):
+                        os.remove(_file)
                 break
                 
             _ml_res = self.main_loop(ignore_event=[], timeout=50)
@@ -1758,7 +1761,8 @@ class SGui():
                             continue
 
             if _child_proc.poll() == 0:
-                os.remove(_wait_path)
+                if os.path.isfile(_wait_path):
+                    os.remove(_wait_path)
                 break
             
             _ml_res = self.main_loop(ignore_event=[], timeout=50)
@@ -1808,8 +1812,8 @@ class SGui():
             # if _ml_res == "-close-"
             # if _ml_res == "-restart-"
             # if _ml_res == "-ignore-"
-                
-        os.remove(self.started_manual_services_file)
+        if os.path.isfile(self.started_manual_services_file):
+            os.remove(self.started_manual_services_file)
 
         return "-restart-"
     
