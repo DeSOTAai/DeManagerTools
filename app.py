@@ -74,17 +74,16 @@ class SGui():
         self.themes = psg.ListOfLookAndFeelValues()
         self.current_theme = self.get_user_theme()
         self.icon = os.path.join(APP_PATH, "Assets", "icon.ico")
-        self.started_manual_services_file = os.path.join(CONFIG_FOLDER, "manual_services_started.txt")
-        
-        self.services_config, self.latest_services_config = self.get_services_config(ignore_update=ignore_update)
-        if not self.services_config:
-            raise EnvironmentError()
+        self.started_manual_services_file = os.path.join(TMP_PATH, "manual_services_started.txt")
+        self.exist_log = os.path.isfile(LOG_PATH)
 
         self.user_config = self.get_user_config()
         if not self.user_config:
             raise EnvironmentError()
         
-        self.system = self.user_config['system']
+        self.services_config, self.latest_services_config = self.get_services_config(ignore_update=ignore_update)
+        if not self.services_config:
+            raise EnvironmentError()
         
         #define pysimplegui theme
         psg.theme(self.current_theme)
@@ -237,7 +236,7 @@ class SGui():
         _target_status_res = os.path.join(APP_PATH, f"{asset_basename}{_curr_epoch}.txt")
         # retrieved from https://stackoverflow.com/a/62226026
         so = open(_target_status_res, "w")
-        _status_cmd = [get_status_path, "/nopause"] if self.system == "win" else ["bash", get_status_path] if self.system == "lin" else []
+        _status_cmd = [get_status_path, "/nopause"] if USER_SYS == "win" else ["bash", get_status_path] if USER_SYS == "lin" else []
         print("          State CMD:", _status_cmd)
         _sproc = subprocess.Popen(
             _status_cmd,
@@ -300,11 +299,11 @@ class SGui():
         )
         _started_manual_services = [m.replace("\n", "").strip() for m in _started_manual_services]
         for service in _started_manual_services:
-            _service_sys_params=self.services_config["services_params"][service][self.system]
+            _service_sys_params=self.services_config["services_params"][service][USER_SYS]
             _stop_path=os.path.join(USER_PATH, _service_sys_params['project_dir'], _service_sys_params['execs_path'], _service_sys_params['stoper'])
-            if self.system == "win":
+            if USER_SYS == "win":
                 _close_cmd=[_stop_path]
-            elif self.system == "lin":
+            elif USER_SYS == "lin":
                 _close_cmd=["bash", _stop_path]
             subprocess.call(_close_cmd)
         
@@ -384,7 +383,7 @@ class SGui():
 
     def user_chown(self, path):
         '''Remove root previleges for files and folders: Required for Linux'''
-        if self.system == "lin":
+        if USER_SYS == "lin":
             #CURR_PATH=/home/[USER]/Desota/DeRunner
             USER=str(DESOTA_ROOT_PATH).split("/")[-2]
             os.system(f"chown -R {USER} {path}")
@@ -397,8 +396,7 @@ class SGui():
 
         return sript path
         '''
-        # 1 - INIT + Scripts HEADER
-        if self.system == "win":
+        if USER_SYS == "win":
             '''I'm a windows nerd!'''
             # Init
             target_path = os.path.join(TMP_PATH, f"tmp_model_install{int(time.time())}.bat")
@@ -429,7 +427,7 @@ class SGui():
                     f'FOR /F "tokens=*" %%g IN (\'{derunner_status_path} /nopause\') do (SET derunner_status=%%g)\n',
                     "IF %derunner_status% EQU SERVICE_RUNNING GOTO wait_derunner_stop\n"
                 ]
-        elif self.system=="lin":
+        elif USER_SYS=="lin":
             '''I know what i'm doing '''
             # Init
             target_path = os.path.join(TMP_PATH, f"tmp_model_install{int(time.time())}.bash")
@@ -472,9 +470,11 @@ class SGui():
         
         # 2 - Uninstall <- Required Models
         for _model in model_ids:
-            if _model not in self.services_config["services_params"]:
-                continue
-            _asset_sys_params=self.services_config["services_params"][_model][self.system]
+            if _model in self.services_config["services_params"]:
+                _asset_sys_params=self.services_config["services_params"][_model][USER_SYS]
+            else:
+                _asset_sys_params=self.latest_services_config["services_params"][_model][USER_SYS]
+
             _asset_uninstaller = os.path.join(USER_PATH, _asset_sys_params["project_dir"], _asset_sys_params["execs_path"], _asset_sys_params["uninstaller"])
             _uninstaller_bn = os.path.basename(_asset_uninstaller)
             _tmp_uninstaller = os.path.join(USER_PATH, f'{int(time.time())}{_uninstaller_bn}')
@@ -482,7 +482,7 @@ class SGui():
                 _tmp_file_lines += [
                     f"{_log_prefix}Uninstalling '{_model}'...>>{LOG_PATH}\n",
                     f"{_copy}{_asset_uninstaller} {_tmp_uninstaller}\n",
-                    f'{_start_cmd}{_tmp_uninstaller} {" ".join(_asset_sys_params["uninstaller_args"] if "uninstaller_args" in _asset_sys_params and _asset_sys_params["uninstaller_args"] else [])}{f" /automatic {USER_PATH}" if self.system=="win" else " -a" if self.system=="lin" else ""}\n',
+                    f'{_start_cmd}{_tmp_uninstaller} {" ".join(_asset_sys_params["uninstaller_args"] if "uninstaller_args" in _asset_sys_params and _asset_sys_params["uninstaller_args"] else [])}{f" /automatic {USER_PATH}" if USER_SYS=="win" else " -a" if USER_SYS=="lin" else ""}\n',
                     f'{_rm}{_tmp_uninstaller} {_noecho}\n'
                 ]
 
@@ -490,17 +490,17 @@ class SGui():
         # 3 - Download + Uncompress to target folder <- Required Models
         for _count, _model in enumerate(model_ids):
             _asset_params=self.latest_services_config["services_params"][_model]
-            _asset_sys_params=_asset_params[self.system]
+            _asset_sys_params=_asset_params[USER_SYS]
             _asset_repo=_asset_params["source_code"]
             _asset_commit=_asset_sys_params["commit"]
             _asset_project_dir = os.path.join(USER_PATH, _asset_sys_params["install_dir"] if "install_dir" in _asset_sys_params else _asset_sys_params["project_dir"])
             _tmp_repo_dwnld_path=os.path.join(USER_PATH, f"DeRunner_Dwnld_{_count}.zip")
             ## Download Commands
-            if self.system == "win":
+            if USER_SYS == "win":
                 _mkdir="mkdir "
                 _download_cmd=f'powershell -command "Invoke-WebRequest -Uri {_asset_repo}/archive/{_asset_commit}.zip -OutFile {_tmp_repo_dwnld_path}"\n'
                 _uncompress_cmd=f'tar -xzvf {_tmp_repo_dwnld_path} -C {_asset_project_dir} --strip-components 1\n'
-            elif self.system=="lin":
+            elif USER_SYS=="lin":
                 _mkdir="mkdir -p "
                 _download_cmd=f'wget {_asset_repo}/archive/{_asset_commit}.zip -O {_tmp_repo_dwnld_path}\n'
                 _uncompress_cmd=f'apt install libarchive-tools -y && bsdtar -xzvf {_tmp_repo_dwnld_path} -C {_asset_project_dir} --strip-components=1\n'
@@ -515,7 +515,7 @@ class SGui():
 
         # 4 - Setup <- Required Models
         for _count, _model in enumerate(model_ids):
-            _asset_sys_params=self.latest_services_config["services_params"][_model][self.system]
+            _asset_sys_params=self.latest_services_config["services_params"][_model][USER_SYS]
             _asset_setup = os.path.join(USER_PATH, _asset_sys_params["project_dir"], _asset_sys_params["execs_path"], _asset_sys_params["setup"])
             _tmp_file_lines += [
                     f"{_log_prefix}Installing '{_model}'... >>{LOG_PATH}\n",
@@ -533,7 +533,7 @@ class SGui():
             if _model == "desotaai/derunner":
                 continue
             _asset_params=self.latest_services_config["services_params"][_model]
-            _asset_sys_params=_asset_params[self.system]
+            _asset_sys_params=_asset_params[USER_SYS]
             if _asset_params["run_constantly"]:
                 _asset_start = os.path.join(USER_PATH, _asset_sys_params["project_dir"], _asset_sys_params["execs_path"], _asset_sys_params["starter"])
                 _tmp_file_lines += [
@@ -592,7 +592,7 @@ class SGui():
         '''
         
         # 1 - INIT + Scripts HEADER
-        if self.system == "win":
+        if USER_SYS == "win":
             '''I'm a windows nerd!'''
             # Init
             target_path = os.path.join(TMP_PATH, f"tmp_model_uninstall{int(time.time())}.bat")
@@ -622,7 +622,7 @@ class SGui():
                     f'FOR /F "tokens=*" %%g IN (\'{derunner_status_path} /nopause\') do (SET derunner_status=%%g)\n',
                     "IF %derunner_status% EQU SERVICE_RUNNING GOTO wait_derunner_stop\n"
                 ]
-        elif self.system=="lin":
+        elif USER_SYS=="lin":
             '''I know what i'm doing '''
             # Init
             target_path = os.path.join(TMP_PATH, f"tmp_model_uninstall{int(time.time())}.bash")
@@ -658,7 +658,11 @@ class SGui():
         
         # 2 - Uninstall <- Required Models
         for _model in model_ids:
-            _asset_sys_params=self.services_config["services_params"][_model][self.system]
+            if _model in self.services_config["services_params"]:
+                _asset_sys_params=self.services_config["services_params"][_model][USER_SYS]
+            else:
+                _asset_sys_params=self.latest_services_config["services_params"][_model][USER_SYS]
+
             _asset_uninstaller = os.path.join(USER_PATH, _asset_sys_params["project_dir"], _asset_sys_params["execs_path"], _asset_sys_params["uninstaller"])
             _uninstaller_bn = os.path.basename(_asset_uninstaller)
             _tmp_uninstaller = os.path.join(USER_PATH, f'{int(time.time())}{_uninstaller_bn}')
@@ -666,7 +670,7 @@ class SGui():
                 _tmp_file_lines += [
                     f"{_log_prefix}Uninstalling '{_model}'...>>{LOG_PATH}\n",
                     f"{_copy}{_asset_uninstaller} {_tmp_uninstaller}\n",
-                    f'{_start_cmd}{_tmp_uninstaller} {" ".join(_asset_sys_params["uninstaller_args"] if "uninstaller_args" in _asset_sys_params and _asset_sys_params["uninstaller_args"] else [])}{f" /automatic {USER_PATH}" if self.system=="win" else " -a" if self.system=="lin" else ""}\n',
+                    f'{_start_cmd}{_tmp_uninstaller} {" ".join(_asset_sys_params["uninstaller_args"] if "uninstaller_args" in _asset_sys_params and _asset_sys_params["uninstaller_args"] else [])}{f" /automatic {USER_PATH}" if USER_SYS=="win" else " -a" if USER_SYS=="lin" else ""}\n',
                     f'{_rm}{_tmp_uninstaller} {_noecho}\n'
                 ]
 
@@ -674,22 +678,7 @@ class SGui():
         _tmp_file_lines += _manage_configs_loop
 
         # Force DeRunner Restart
-        if "desotaai/derunner" not in model_ids:
-            _asset_sys_params=self.latest_services_config["services_params"]["desotaai/derunner"][self.system]
-            _derunner_start = os.path.join(USER_PATH, _asset_sys_params["project_dir"], _asset_sys_params["execs_path"], _asset_sys_params["starter"])
-            if os.path.isfile(_derunner_start):
-                _tmp_file_lines += [
-                    f"{_log_prefix}Restarting DeRunner... >>{LOG_PATH}\n",
-                    f'{_start_cmd}{_derunner_start}\n'
-                ]
-
-        ## END OF FILE - Delete Bat at end of instalation 
-        ### WINDOWS - retrieved from https://stackoverflow.com/a/20333152
-        ### LINUX   - ...
-        #DEBUG
-        #_tmp_file_lines.append('(goto) 2>nul & del "%~f0"\n'if self.system == "win" else f'rm -rf {target_path}\n' if self.system == "lin" else "")
-        _tmp_file_lines.append('exit\n')
-
+        _asset_sys_params=self.latest_services_config["services_params"]["desotaai/derunner"][USER_SYS]
         # 6 - Create Uninstaller Script
         with open(target_path, "w") as fw:
             fw.writelines(_tmp_file_lines)
@@ -710,7 +699,7 @@ class SGui():
         '''
         
         # 1 - INIT + Scripts HEADER
-        if self.system == "win":
+        if USER_SYS == "win":
             '''I'm a windows nerd!'''
             # Init
             target_path = os.path.join(TMP_PATH, f"tmp_model_install{int(time.time())}.bat")
@@ -720,7 +709,7 @@ class SGui():
             # 1 - BAT HEADER
             _tmp_file_lines = ["@ECHO OFF\n"]
             _tmp_file_lines += GET_WIN_ADMIN
-        elif self.system=="lin":
+        elif USER_SYS=="lin":
             '''I know what i'm doing '''
             # Init
             target_path = os.path.join(TMP_PATH, f"tmp_model_install{int(time.time())}.bash")
@@ -740,7 +729,7 @@ class SGui():
         
         # 2 - Start|Stop <- Required Models
         for _model in model_ids:
-            _asset_sys_params=self.services_config["services_params"][_model][self.system]
+            _asset_sys_params=self.services_config["services_params"][_model][USER_SYS]
             if state:
                 _log="Starting"
                 _asset_state = os.path.join(USER_PATH, _asset_sys_params["project_dir"], _asset_sys_params["execs_path"], _asset_sys_params["starter"])
@@ -757,9 +746,7 @@ class SGui():
         ## END OF FILE - Delete Bat at end of instalation 
         ### WINDOWS - retrieved from https://stackoverflow.com/a/20333152
         ### LINUX   - ...
-        #DEBUG
-        #_tmp_file_lines.append('(goto) 2>nul & del "%~f0"\n'if self.system == "win" else f'rm -rf {target_path}\n' if self.system == "lin" else "")
-        _tmp_file_lines.append('exit\n')
+        _tmp_file_lines.append('(goto) 2>nul & del "%~f0"\n'if USER_SYS == "win" else f'rm -rf {target_path}\n' if USER_SYS == "lin" else "")
 
         # 6 - Create Start|Stop Script
         with open(target_path, "w") as fw:
@@ -820,7 +807,7 @@ class SGui():
         _user_models = self.get_user_config()["models"]
         for model_id, model_v in _user_models.items():
             _last_service_params = self.latest_services_config["services_params"]
-            if _last_service_params[model_id][self.system]["version"] == model_v or model_id not in _res_serv_conf["services_params"]:
+            if _last_service_params[model_id][USER_SYS]["version"] == model_v or model_id not in _res_serv_conf["services_params"]:
                 _res_serv_conf["services_params"][model_id] = _last_service_params[model_id]
             if "child_models" in _res_serv_conf["services_params"][model_id] and _res_serv_conf["services_params"][model_id]["child_models"]:
                 for child in _res_serv_conf["services_params"][model_id]["child_models"]:
@@ -843,7 +830,7 @@ class SGui():
                 continue
             print("          Tool ID  :", _k)
             _tool_params = self.services_config["services_params"][_k]
-            _tool_sys_params = _tool_params[self.system]
+            _tool_sys_params = _tool_params[USER_SYS]
             _tool_desc = _tool_params["short_description"]
             print("          Tool Desc:", _tool_desc)
             _tool_status_path = os.path.join(USER_PATH, _tool_sys_params["project_dir"], _tool_sys_params["execs_path"], _tool_sys_params["status"]) if _tool_sys_params["status"] else None
@@ -873,7 +860,7 @@ class SGui():
                 continue
             print("          Model ID  :", _k)
             _model_params = self.services_config["services_params"][_k]
-            _model_sys_params = _model_params[self.system]
+            _model_sys_params = _model_params[USER_SYS]
             _model_desc = _model_params["short_description"]
             print("          Model Desc:", _model_desc)
             _model_status_path = os.path.join(USER_PATH, _model_sys_params["project_dir"], _model_sys_params["execs_path"], _model_sys_params["status"]) if "status" in _model_sys_params and _model_sys_params["status"] else None
@@ -1145,7 +1132,7 @@ class SGui():
         for count, (_serv, _params) in enumerate(self.latest_services_config['services_params'].items()):
             if _params["submodel"] == True:
                 continue
-            _latest_model_version = _params[self.system]['version']
+            _latest_model_version = _params[USER_SYS]['version']
 
             if self.user_config['models'] and _serv in self.user_config['models'] and self.user_config['models'][_serv] != _latest_model_version:
                 _desc = self.latest_services_config["services_params"][_serv]["short_description"]
@@ -1427,9 +1414,9 @@ class SGui():
         _install_script_path = self.create_asset_install_script(_models_2_upgrade, _wait_path, _sucess_path, progress=_install_prog_file)
         if not os.path.isfile(_install_script_path):
             return "-ignore-"
-        if self.system == "win":
+        if USER_SYS == "win":
             _install_cmd=[_install_script_path]
-        elif self.system == "lin":
+        elif USER_SYS == "lin":
             _install_cmd=["pkexec", "bash", _install_script_path]
             
         _child_proc = subprocess.Popen(_install_cmd)
@@ -1469,7 +1456,7 @@ class SGui():
                         for _line in _install_res:
                             _model=_line.strip()
                             # if _model in self.latest_services_config["services_params"]:
-                            _new_version = self.latest_services_config["services_params"][_model][self.system]["version"]
+                            _new_version = self.latest_services_config["services_params"][_model][USER_SYS]["version"]
                             _install_conf[_model] = _new_version
                             print("NEW USER MODELS:")
                             print("    Model:", _model)
@@ -1576,7 +1563,7 @@ class SGui():
     def model_ui_handle(self, model_name):
         _res = None
         _model_params = self.services_config["services_params"][model_name]
-        _model_sys_params = _model_params[self.system]
+        _model_sys_params = _model_params[USER_SYS]
         if "model_ui" in _model_params and _model_params["model_ui"]:
             _model_ui_url = _model_params["model_ui"]
             _model_req_hs = _model_params["handshake_req"]
@@ -1593,9 +1580,9 @@ class SGui():
 
                 #Start Run Constantly Services
                 _start_run_constantly_serv_path = os.path.join(USER_PATH, _model_sys_params["project_dir"], _model_sys_params["execs_path"], _model_sys_params["starter"])
-                if self.system == "win":
+                if USER_SYS == "win":
                     _sproc = subprocess.Popen([_start_run_constantly_serv_path])
-                elif self.system == "lin":
+                elif USER_SYS == "lin":
                     _sproc = subprocess.Popen(["pkexec", "bash", _start_run_constantly_serv_path])
 
                 _res = "-restart-"
@@ -1641,9 +1628,9 @@ class SGui():
                 self.root['stopManualServices'].update(disabled=False)
                 #Start Service!
                 _start_run_constantly_serv_path = os.path.join(USER_PATH, _model_sys_params["project_dir"], _model_sys_params["execs_path"], _model_sys_params["starter"])
-                if self.system == "win":
+                if USER_SYS == "win":
                     _sproc = subprocess.Popen([_start_run_constantly_serv_path])
-                elif self.system == "lin":
+                elif USER_SYS == "lin":
                     _sproc = subprocess.Popen(["pkexec", "bash", _start_run_constantly_serv_path])
 
                 _res = "-restart-"
@@ -1664,7 +1651,7 @@ class SGui():
         
         elif  "model_cli" in _model_params and _model_params["model_cli"]:
             cli_cmd = []
-            for mc in _model_params[self.system][_model_params["model_cli"]]:
+            for mc in _model_params[USER_SYS][_model_params["model_cli"]]:
                 # PATH TEST (get files and arguments)
                 _tmp_path = os.path.join(USER_PATH, mc)
                 if os.path.isfile(_tmp_path):
@@ -1727,9 +1714,9 @@ class SGui():
         
         # - UNINSTALL CONFIRMED BELLOW
         
-        if self.system == "win":
+        if USER_SYS == "win":
             _cmd_prefix=[]
-        if self.system == "lin":
+        if USER_SYS == "lin":
             _cmd_prefix=["pkexec", "bash"]
 
         
@@ -1786,13 +1773,13 @@ class SGui():
         if not _popup_ok:
             return "-ignore-"
         
-        if self.system == "win":
+        if USER_SYS == "win":
             _cmd_prefix=[]
-        if self.system == "lin":
+        if USER_SYS == "lin":
             _cmd_prefix=["pkexec", "bash"]
         
         for model in _started_manual_services:
-            _model_sys_params = self.services_config["services_params"][model][self.system]
+            _model_sys_params = self.services_config["services_params"][model][USER_SYS]
             _stop_model_path = os.path.join(USER_PATH, _model_sys_params["project_dir"], _model_sys_params["execs_path"], _model_sys_params["stoper"])
         
         _stop_model_path = self.create_asset_startstop_script(_started_manual_services, False)
