@@ -414,11 +414,30 @@ class SGui():
 
         return sript path
         '''
+        ##                     ##
+        # Loading Stuff - Begin #
+        l_download_weigth=5
+        l_stop__weigth=8
+        l_start__weigth=12
+        l_uninstall_weigth=15
+        l_setup_weigth=25
+        _steps = None
+        # Loading Stuff -   End #
+        ##                     ##
+        # 1 - INIT
+        if "desotaai/derunner" in self.services_config["services_params"]:
+            derunner_sys_params = self.services_config["services_params"]["desotaai/derunner"][USER_SYS]
+        else:
+            derunner_sys_params = self.latest_services_config["services_params"]["desotaai/derunner"][USER_SYS]
+            
+        derunner_stop_path = os.path.join(USER_PATH, derunner_sys_params["project_dir"], derunner_sys_params["execs_path"], derunner_sys_params["stoper"])
+        derunner_status_path = os.path.join(USER_PATH, derunner_sys_params["project_dir"], derunner_sys_params["execs_path"], derunner_sys_params["status"])
+        derunner_start_path = os.path.join(USER_PATH, derunner_sys_params["project_dir"], derunner_sys_params["execs_path"], derunner_sys_params["starter"])
         if USER_SYS == "win":
             '''I'm a windows nerd!'''
             # Init
             target_path = os.path.join(TMP_PATH, f"tmp_model_install{int(time.time())}.bat")
-            _start_cmd="start /W "
+            _start_cmd="start /W /B "
             _call = "call "
             _copy = "copy "
             _rm = "del "
@@ -426,9 +445,9 @@ class SGui():
             _log_prefix = "ECHO DeManagerTools.Install - "
             _manage_configs_loop = [
                 f"ECHO 0 >{manage_configs_flag_path}\n",
-                ":wait4demanager",
-                f"SET /p fmanager=<{manage_configs_flag_path}"
-                "IF NOT %fmanager% == 1 GOTO wait4demanager"
+                ":wait4demanager\n",
+                f"SET /p fmanager=<{manage_configs_flag_path}\n"
+                "IF NOT %fmanager% == 1 GOTO wait4demanager\n"
             ]
             
             # 1 - BAT HEADER
@@ -436,15 +455,16 @@ class SGui():
             _tmp_file_lines += GET_WIN_ADMIN
             
             # 1.1 - Wait DeRunner Service STOP
-            derunner_stop_path = os.path.join(USER_PATH, "DeRunner", "executables", "Windows", "derunner.stop.bat")
-            derunner_status_path = os.path.join(USER_PATH, "DeRunner", "executables", "Windows", "derunner.status.bat")
             if os.path.isfile(derunner_stop_path):
                 _tmp_file_lines += [
                     ":wait_derunner_stop\n",
-                    f"start /W {derunner_stop_path}"
+                    f"{_start_cmd}{derunner_stop_path}\n"
                     f'FOR /F "tokens=*" %%g IN (\'{derunner_status_path} /nopause\') do (SET derunner_status=%%g)\n',
                     "IF %derunner_status% EQU SERVICE_RUNNING GOTO wait_derunner_stop\n"
                 ]
+                _steps = l_stop__weigth
+                _tmp_file_lines.append(f'echo {_steps} > {progress}\n')
+                
         elif USER_SYS=="lin":
             '''I know what i'm doing '''
             # Init
@@ -467,17 +487,17 @@ class SGui():
             _tmp_file_lines = ["#!/bin/bash\n"]
             
             # 1.1 - Wait DeRunner Service STOP
-            derunner_stop_path = os.path.join(USER_PATH, "DeRunner", "executables", "Linux", "derunner.stop.bash")
-            derunner_status_path = os.path.join(USER_PATH, "DeRunner", "executables", "Linux", "derunner.status.bash")
             if os.path.isfile(derunner_stop_path):
                 _tmp_file_lines += [
-                    f"_serv_status=$(bash {derunner_status_path})\n",
+                    f"_serv_status=$({_start_cmd}{derunner_status_path})\n",
                     'while [ "$_serv_status" = "SERVICE_RUNNING" ]\n',
                     "do\n",
-                    f"\tbash {derunner_stop_path}"
-                    f"\t_serv_status=$(bash {derunner_status_path})\n",
+                    f"\t{_start_cmd}{derunner_stop_path}"
+                    f"\t_serv_status=$({_start_cmd}{derunner_status_path})\n",
                     "done\n",
                 ]
+                _steps = l_stop__weigth
+                _tmp_file_lines.append(f'echo {_steps} > {progress}\n')
 
         if isinstance(model_ids, str):
             model_ids = [model_ids]
@@ -495,14 +515,17 @@ class SGui():
 
             _asset_uninstaller = os.path.join(USER_PATH, _asset_sys_params["project_dir"], _asset_sys_params["execs_path"], _asset_sys_params["uninstaller"])
             _uninstaller_bn = os.path.basename(_asset_uninstaller)
-            _tmp_uninstaller = os.path.join(USER_PATH, f'{int(time.time())}{_uninstaller_bn}')
+            _tmp_uninstaller = os.path.join(TMP_PATH, f'{int(time.time())}{_uninstaller_bn}')
             if os.path.isfile(_asset_uninstaller):
                 _tmp_file_lines += [
                     f"{_log_prefix}Uninstalling '{_model}'...>>{LOG_PATH}\n",
                     f"{_copy}{_asset_uninstaller} {_tmp_uninstaller}\n",
                     f'{_start_cmd}{_tmp_uninstaller} {" ".join(_asset_sys_params["uninstaller_args"] if "uninstaller_args" in _asset_sys_params and _asset_sys_params["uninstaller_args"] else [])}{f" /automatic {USER_PATH}" if USER_SYS=="win" else " -a" if USER_SYS=="lin" else ""}\n',
-                    f'{_rm}{_tmp_uninstaller} {_noecho}\n'
+                    f'{_rm}{_tmp_uninstaller}{_noecho}\n'
                 ]
+                _steps = l_uninstall_weigth if _steps == None else _steps+l_uninstall_weigth
+                _tmp_file_lines.append(f'echo {_steps} > {progress}\n')
+                
 
 
         # 3 - Download + Uncompress to target folder <- Required Models
@@ -512,39 +535,44 @@ class SGui():
             _asset_repo=_asset_params["source_code"]
             _asset_commit=_asset_sys_params["commit"]
             _asset_project_dir = os.path.join(USER_PATH, _asset_sys_params["install_dir"] if "install_dir" in _asset_sys_params else _asset_sys_params["project_dir"])
-            _tmp_repo_dwnld_path=os.path.join(USER_PATH, f"DeRunner_Dwnld_{_count}.zip")
+            _tmp_repo_dwnld_path=os.path.join(TMP_PATH, f"DeRunner_Dwnld_{_count}.zip")
             ## Download Commands
             if USER_SYS == "win":
                 _mkdir="mkdir "
-                _download_cmd=f'powershell -command "Invoke-WebRequest -Uri {_asset_repo}/archive/{_asset_commit}.zip -OutFile {_tmp_repo_dwnld_path}"\n'
-                _uncompress_cmd=f'tar -xzvf {_tmp_repo_dwnld_path} -C {_asset_project_dir} --strip-components 1\n'
+                _download_cmd=f'powershell -command "Invoke-WebRequest -Uri {_asset_repo}/archive/{_asset_commit}.zip -OutFile {_tmp_repo_dwnld_path} -erroraction \'silentlycontinue\'"{_noecho}\n'
+                _uncompress_cmd=f'tar -xzvf {_tmp_repo_dwnld_path} -C {_asset_project_dir} --strip-components 1{_noecho}\n'
             elif USER_SYS=="lin":
                 _mkdir="mkdir -p "
-                _download_cmd=f'wget {_asset_repo}/archive/{_asset_commit}.zip -O {_tmp_repo_dwnld_path}\n'
-                _uncompress_cmd=f'apt install libarchive-tools -y && bsdtar -xzvf {_tmp_repo_dwnld_path} -C {_asset_project_dir} --strip-components=1\n'
+                _download_cmd=f'wget {_asset_repo}/archive/{_asset_commit}.zip -O {_tmp_repo_dwnld_path}{_noecho}\n'
+                _uncompress_cmd=f'apt install libarchive-tools -y && bsdtar -xzvf {_tmp_repo_dwnld_path} -C {_asset_project_dir} --strip-components=1{_noecho}\n'
             _tmp_file_lines += [
+                "echo Download InFo:\n",
+                f"echo         Model ID: {_model}\n",
+                f"echo     Model Source: {_asset_repo}\n",
+                f"echo     Model Commit: {_asset_commit}\n",
                 f"{_log_prefix}Downlading '{_model}'... >>{LOG_PATH}\n",
-                f"{_mkdir}{_asset_project_dir}\n", # Create Asset Folder
+                f"{_mkdir}{_asset_project_dir}{_noecho}\n", # Create Asset Folder
                 _download_cmd,
+                "echo Uncompressing Project to target folder:\n",
+                f"echo     {_asset_project_dir}\n",
                 _uncompress_cmd,
-                f'{_rm}{_tmp_repo_dwnld_path} {_noecho}\n'
+                f'{_rm}{_tmp_repo_dwnld_path}{_noecho}\n'
             ]
+            _steps = l_download_weigth if _steps == None else _steps+l_download_weigth
+            _tmp_file_lines.append(f'echo {_steps} > {progress}\n')
 
 
         # 4 - Setup <- Required Models
-        for _count, _model in enumerate(model_ids):
+        for _model in model_ids:
             _asset_sys_params=self.latest_services_config["services_params"][_model][USER_SYS]
             _asset_setup = os.path.join(USER_PATH, _asset_sys_params["project_dir"], _asset_sys_params["execs_path"], _asset_sys_params["setup"])
             _tmp_file_lines += [
-                    f"{_log_prefix}Installing '{_model}'... >>{LOG_PATH}\n",
-                    f'{_start_cmd}{_asset_setup} {" ".join(_asset_sys_params["setup_args"] if "setup_args" in _asset_sys_params and _asset_sys_params["setup_args"] else [])}\n'
-                ]
-            if progress != None and _count != len(model_ids) - 1:
-                _tmp_file_lines.append(f'echo {_count+1} > {progress}\n')
+                f"{_log_prefix}Installing '{_model}'... >>{LOG_PATH}\n",
+                f'{_start_cmd}{_asset_setup} {" ".join(_asset_sys_params["setup_args"] if "setup_args" in _asset_sys_params and _asset_sys_params["setup_args"] else [])}\n'
+            ]
             _tmp_file_lines.append(f'echo {_model} >> {asset_sucess_path}\n')
-                
-        if progress != None:
-            _tmp_file_lines.append(f'echo {len(model_ids)} > {progress}\n')
+            _steps = l_setup_weigth if _steps == None else _steps+l_setup_weigth
+            _tmp_file_lines.append(f'echo {_steps} > {progress}\n')
 
         # 5 - Start `run_constantly` Models <- Required Models
         for _model in model_ids:
@@ -558,49 +586,42 @@ class SGui():
                     f"{_log_prefix}Starting '{_model}'... >>{LOG_PATH}\n",
                     f'{_start_cmd}{_asset_start}\n'
                 ]
+                _steps = l_start__weigth if _steps == None else _steps+l_start__weigth
+                _tmp_file_lines.append(f'echo {_steps} > {progress}\n')
 
         
         #     Update user.config model && services.config model
         #     Everything relies on what is writen into `asset_sucess_path`
         open(asset_sucess_path, "w").close # Clean
         _tmp_file_lines += _manage_configs_loop
-
-        #     _model_version=_asset_sys_params["version"]
-        #     _new_model = json.dumps({
-        #         _model: _model_version
-        #     }).replace(" ", "").replace('"', '\\"')
-        #     _manager_set_user_confs = os.path.join(APP_PATH, "Tools", "SetUserConfigs.py")
-        #     _tmp_file_lines.append(f'{_call}{_app_python} {_manager_set_user_confs} --key models --value "{_new_model}"{_noecho}\n')
-    
-        # ## 5.1 - after asset instalation!!
-        # #   > Update Services Config with params from Latest Services Config
-        # _app_after_model_reinstall = os.path.join(APP_PATH, "Tools", "after_model_reinstall.py")
-        # _tmp_file_lines.append(f'{_call}{_app_python} {_app_after_model_reinstall}{_noecho}\n')
         
         # Force DeRunner Restart
-        if "desotaai/derunner" not in model_ids:
-            _asset_sys_params=self.latest_services_config["services_params"]["desotaai/derunner"][self.system]
-            _derunner_start = os.path.join(USER_PATH, _asset_sys_params["project_dir"], _asset_sys_params["execs_path"], _asset_sys_params["starter"])
-            if os.path.isfile(_derunner_start):
-                _tmp_file_lines += [
-                    f"{_log_prefix}Restarting DeRunner... >>{LOG_PATH}\n",
-                    f'{_start_cmd}{_derunner_start}\n'
-                ]
+        f"{_log_prefix}Restarting DeRunner... >>{LOG_PATH}\n",
+        if USER_SYS == "win":
+            _tmp_file_lines += [
+                f' IF NOT EXIST {derunner_start_path} GOTO noderunnerstart\n',
+                f'{_start_cmd}{derunner_start_path}\n',
+                ":noderunnerstart\n"
+            ]
+        elif USER_SYS == "lin":
+            _tmp_file_lines += [
+                f'if [ -f "{derunner_start_path}" ]; then\n',
+                f'\t{_start_cmd}{derunner_start_path}\n',
+                "fi\n"
+            ]
+        _steps = l_start__weigth if _steps == None else _steps+l_start__weigth
+        _tmp_file_lines.append(f'echo {_steps} > {progress}\n')
 
 
-        ## END OF FILE - Delete Bat at end of instalation 
-        ### WINDOWS - retrieved from https://stackoverflow.com/a/20333152
-        ### LINUX   - ...
-        #DEBUG
-        #_tmp_file_lines.append('(goto) 2>nul & del "%~f0"\n'if self.system == "win" else f'rm -rf {target_path}\n' if self.system == "lin" else "")
-        _tmp_file_lines.append('exit\n')
+        ## END OF FILE
+        _tmp_file_lines.append('exit 0\n')
 
 
         # 6 - Create Installer Bat
         with open(target_path, "w") as fw:
             fw.writelines(_tmp_file_lines)
         self.user_chown(target_path)
-        return target_path
+        return target_path, _steps
 
     def create_asset_uninstall_script(self, model_ids, manage_configs_flag_path) -> str:
         '''
@@ -1417,10 +1438,7 @@ class SGui():
 
         if not _models_2_upgrade:
             return "-ignore-"
-        
-        
-        _ammount_models = len(_models_2_upgrade)
-        
+                
         _ok_res = psg.popup_ok(f"You will install the following models: {json.dumps(_models_2_upgrade, indent=4)}\nPress Ok to proceed", title="", icon=self.icon)
         if not _ok_res:
             print("OK RES", _ok_res)
@@ -1429,7 +1447,7 @@ class SGui():
         _install_prog_file = os.path.join(APP_PATH, "install_progress.txt")
         _wait_path=os.path.join(TMP_PATH, f"{_time}install_waiter.txt")
         _sucess_path=os.path.join(TMP_PATH, f"{_time}install_result.txt")
-        _install_script_path = self.create_asset_install_script(_models_2_upgrade, _wait_path, _sucess_path, progress=_install_prog_file)
+        _install_script_path, _install_steps = self.create_asset_install_script(_models_2_upgrade, _wait_path, _sucess_path, progress=_install_prog_file)
         if not os.path.isfile(_install_script_path):
             return "-ignore-"
         if USER_SYS == "win":
@@ -1458,7 +1476,7 @@ class SGui():
             if _mem_prog != _curr_prog_file:
                 _mem_prog = _curr_prog_file
                 
-            _curr_prog = (_curr_prog_file/_ammount_models) * 100
+            _curr_prog = (_curr_prog_file/_install_steps) * 100
             self.root['installPBAR'].update(current_count=_curr_prog)
             
             if os.path.isfile(_wait_path):
