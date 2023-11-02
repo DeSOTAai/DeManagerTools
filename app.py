@@ -36,10 +36,14 @@ LOG_PATH=os.path.join(DESOTA_ROOT_PATH, "demanager.log")
 TMP_PATH=os.path.join(DESOTA_ROOT_PATH, "tmp")
 if not os.path.isdir(TMP_PATH):
     os.mkdir(TMP_PATH)
+WHOAMI_PATH=os.path.join(APP_PATH, "whoami.json")
+
 # import pyyaml module
 import yaml
 from yaml.loader import SafeLoader
 CONFIG_FOLDER=os.path.join(DESOTA_ROOT_PATH, "Configs")  # User | Services
+if not os.path.isdir(CONFIG_FOLDER):
+    os.mkdir(CONFIG_FOLDER)
 USER_CONFIG_PATH=os.path.join(CONFIG_FOLDER, "user.config.yaml")
 SERVICES_CONFIG_PATH=os.path.join(CONFIG_FOLDER, "services.config.yaml")
 LAST_SERVICES_CONFIG_PATH=os.path.join(CONFIG_FOLDER, "latest_services.config.yaml")
@@ -776,6 +780,139 @@ class SGui():
         self.user_chown(target_path)
         return target_path
 
+    def create_dmp_upgrade_script(self, confirm=False) -> str:
+        '''
+        Create DeManagerTools Upgrade scrip
+
+        `confirm` : Shortwire User Confirm Upgrade 
+
+        Returns scripy path
+        '''
+        _time=int(time.time())
+        # Retrieve Identity
+        whoami=None
+        if os.path.isfile(WHOAMI_PATH):
+            with open(WHOAMI_PATH) as fr:
+                try:
+                    whoami=json.load(fr)
+                except:
+                    pass
+        if not whoami:
+            whoami = {
+                "version": "0.0.3",
+                "developer":"Francisco Vargas",
+                "github":"https://github.com/desotaai/demanagertools/",
+                "platform":"https://desota.net/"
+            }
+            with open(WHOAMI_PATH, "w") as fw:
+                json.dump(whoami, fw, indent=2)
+
+        #Compare Version with latest manager params
+        manager_sys_params = self.latest_services_config["manager_params"][USER_SYS]
+        latest_version = manager_sys_params["version"]
+        if whoami["version"] != latest_version:
+            # Confirm User Wants to upgrade:
+            if not confirm:
+                _app_upgrade = psg.popup_yes_no(
+                    f"New release of the `DeSOTA - Manager Tools` is available!\nCurrent version: {whoami['version']}\nLatest version : {latest_version}\nDescription: {manager_sys_params['release_desc']}\n\nProceed with upgrade?",
+                    title="DeSOTA - Manager Tools",
+                    icon=self.icon,
+                )
+                if _app_upgrade != "Yes":
+                    return None
+
+            # System VARS
+            if USER_SYS == "win":
+                dmt_upgrade_template_path = os.path.join(EXECS_PATH, "update.template.bat")
+                dmt_upgrade_target = os.path.join(TMP_PATH, f"upgrade_dmt_v{latest_version}_{_time}.bat")
+                tmp_zip_download = os.path.join(TMP_PATH, f"upgrade_dmt_v{latest_version}_{_time}.zip")
+                dmt_exe_path = os.path.join(APP_PATH, "dist",  "Desota - Manager Tools.exe")
+            
+            
+            # Read Template
+            with open(dmt_upgrade_template_path, "r") as fr:
+                dmt_upgrade = fr.read()
+            # Construct DMT upgrade script from template
+            _backup_path = os.path.join(TMP_PATH, f"dmt_bckup{_time}")
+            _translate_dic={
+                "__program_dir__": APP_PATH,
+                "__backup_dir__": _backup_path,
+                "__program_exe__": f'"{dmt_exe_path}"',
+                "__download_url__": manager_sys_params["build_url"],
+                "__tmp_compress_file__": tmp_zip_download,
+                "__version__": latest_version,
+                "__demanager_log__": LOG_PATH,
+                "__upgrade_path__": dmt_upgrade_target
+            }
+            for k, v in _translate_dic.items():
+                dmt_upgrade = dmt_upgrade.replace(k, v)
+
+            with open(dmt_upgrade_target, "w") as fw:
+                fw.write(dmt_upgrade)
+
+            return dmt_upgrade_target
+        return None
+
+    #   > Grab User Configurations
+    def get_user_config(self) -> dict:
+        if not os.path.isfile(USER_CONFIG_PATH):
+            _template_user_conf={
+                "user_api": None,
+                "models":None,
+                "system": USER_SYS
+            }
+            with open(USER_CONFIG_PATH, 'w',) as fw:
+                yaml.dump(_template_user_conf,fw,sort_keys=False)
+            self.user_chown(USER_CONFIG_PATH)
+            return _template_user_conf
+        with open( USER_CONFIG_PATH ) as f_user:
+            return yaml.load(f_user, Loader=SafeLoader)
+    
+    #   > Return latest_services.config.yaml(write if not ignore_update)
+    def get_services_config(self, ignore_update=False) -> (dict, dict):
+        _req_res = None
+        if not ignore_update:
+            _req_res = requests.get(LATEST_SERV_CONF_RAW)
+        if ignore_update or ( isinstance(_req_res, requests.Response) and _req_res.status_code != 200 ):
+            if not (os.path.isfile(SERVICES_CONFIG_PATH) or os.path.isfile(LAST_SERVICES_CONFIG_PATH)):
+                print(f" [SERV_CONF] Not found-> {SERVICES_CONFIG_PATH}")
+                print(f" [LAST_SERV_CONF] Not found-> {LAST_SERVICES_CONFIG_PATH}")
+                raise EnvironmentError()
+            else:
+                with open( SERVICES_CONFIG_PATH ) as f_curr:
+                    with open(LAST_SERVICES_CONFIG_PATH) as f_last:
+                        return yaml.load(f_curr, Loader=SafeLoader), yaml.load(f_last, Loader=SafeLoader)
+                    
+        # Create Latest Services Config File
+        with open(LAST_SERVICES_CONFIG_PATH, "w") as fw:
+            fw.write(_req_res.text)
+        self.user_chown(LAST_SERVICES_CONFIG_PATH)
+
+        # Create Services Config File if don't exist
+        if not os.path.isfile(SERVICES_CONFIG_PATH):
+            with open(LAST_SERVICES_CONFIG_PATH) as fls:
+                _template_serv=yaml.load(fls, Loader=SafeLoader)
+             
+            _user_models = self.get_user_config()["models"]
+            _user_serv_params = {}
+            if _user_models:
+                for _model in _user_models:
+                    _params = _template_serv["services_params"][_model]
+                    _user_serv_params[_model] = _params
+                    if "child_models" in _params and _params["child_models"]:
+                        for _child in  _params["child_models"]:
+                            if _child in _template_serv["services_params"]:
+                                _user_serv_params[_child] = _template_serv["services_params"][_child]
+
+            _template_serv["services_params"] = _user_serv_params
+            with open(SERVICES_CONFIG_PATH, "w") as fw:
+                yaml.dump(_template_serv,fw,sort_keys=False)
+            self.user_chown(SERVICES_CONFIG_PATH)
+
+        with open( SERVICES_CONFIG_PATH ) as f_curr:
+            with open(LAST_SERVICES_CONFIG_PATH) as f_last:
+                return yaml.load(f_curr, Loader=SafeLoader), yaml.load(f_last, Loader=SafeLoader)
+    
     # Edit User Configs
     def edit_user_configs(self, key, value, uninstall=False):
         user_config = self.get_user_config()
@@ -1939,24 +2076,6 @@ class SGui():
             # Check For APP UPGRADES
             if self.just_started:
                 self.just_started = False
-                # TODO: UPDATE DeManagerTools
-                # _app_update, _app_curr_v, _app_last_v = self.get_app_update()
-                # if _app_update:
-                #     _app_upgrade = psg.popup_yes_no(
-                #         f"New release of the `DeSOTA - Manager Tools` is available!\nCurrent version: {_app_curr_v}\nLatest version : {_app_last_v}\n\nDo you want to upgrade the `DeSOTA - Manager Tools`?",
-                #         title="DeSOTA - Manager Tools",
-                #         icon=self.icon,
-                #     )
-                #     if _app_upgrade == "Yes":
-                #         wbm = WinBatManager(self.user_config, self.latest_services_config)
-                #         wbm.upgrade_app(start_upgrade=True)
-
-                #         self.services_config["manager_params"] = self.latest_services_config["manager_params"]
-                #         self.set_services_config()
-
-                #         self.set_app_status(0)
-                #         self.root.close()
-                #         return "-close-"
                     
             #Read  values entered by user
             _event, _values = self.root.read(timeout=timeout)
@@ -2014,6 +2133,30 @@ def main():
     # Start APP
     sgui = SGui()
     print("App Started!")
+
+
+    # Search 4 Upg at startup
+    print("Search 4 Upgrades")
+    _upgrade_sript_path = sgui.create_dmp_upgrade_script()
+    if _upgrade_sript_path:
+        # retrieved from https://stackoverflow.com/a/14797454
+        if USER_SYS == "win":
+            os.system("start " + _upgrade_sript_path)
+        elif USER_SYS == "lin":
+            # _reinstall_cmd = ['/bin/bash', _upgrade_sript_path]  
+            # # inspired in https://stackoverflow.com/a/60280256
+            # subprocess.Popen(
+            #     _reinstall_cmd,
+            #     stdout=None, 
+            #     stderr=None,
+            #     universal_newlines=True,
+            #     preexec_fn=os.setpgrp 
+            # )
+            os.system('/bin/bash ' + _upgrade_sript_path)
+        sgui.sgui_exit()
+        return 0
+
+
     # Get APP Status - Prevent Re-Open
     if sgui.get_app_status() == "1":
         _app_upgrade = psg.popup_yes_no(
