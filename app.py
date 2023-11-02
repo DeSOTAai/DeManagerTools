@@ -61,6 +61,21 @@ GET_WIN_ADMIN = [
     ":gotAdmin\n"
 ]
 
+# inspired inhttps://stackoverflow.com/a/13874620
+def get_platform():
+    _platform = sys.platform
+    _win_res=["win32", "cygwin", "msys"]
+    _lin_res=["linux", "linux2"]
+    _mac_res=["darwin"]
+    _user_sys = "win" if _platform in _win_res else "lin" if _platform in _lin_res else "mac" if _platform in _mac_res else None
+    if not _user_sys:
+        raise EnvironmentError(f"Plataform `{_platform}` can not be parsed to DeSOTA. Options: Windows={_win_res}; Linux={_lin_res}; MacOS={_mac_res}")
+    return _user_sys
+USER_SYS=get_platform()
+if USER_SYS=="win":
+    EXECS_PATH = os.path.join(APP_PATH, "executables", "Windows")
+elif USER_SYS=="lin":
+    EXECS_PATH = os.path.join(APP_PATH, "executables", "Linux")
 
 # Construct APP with PySimpleGui
 class SGui():
@@ -233,7 +248,7 @@ class SGui():
             return None
         _curr_epoch = time.time()
         asset_basename=os.path.basename(get_status_path).split(".")[0]
-        _target_status_res = os.path.join(APP_PATH, f"{asset_basename}{_curr_epoch}.txt")
+        _target_status_res = os.path.join(TMP_PATH, f"{asset_basename}_status{_curr_epoch}.txt")
         # retrieved from https://stackoverflow.com/a/62226026
         so = open(_target_status_res, "w")
         _status_cmd = [get_status_path, "/nopause"] if USER_SYS == "win" else ["bash", get_status_path] if USER_SYS == "lin" else []
@@ -665,7 +680,7 @@ class SGui():
 
             _asset_uninstaller = os.path.join(USER_PATH, _asset_sys_params["project_dir"], _asset_sys_params["execs_path"], _asset_sys_params["uninstaller"])
             _uninstaller_bn = os.path.basename(_asset_uninstaller)
-            _tmp_uninstaller = os.path.join(USER_PATH, f'{int(time.time())}{_uninstaller_bn}')
+            _tmp_uninstaller = os.path.join(TMP_PATH, f'{int(time.time())}{_uninstaller_bn}')
             if os.path.isfile(_asset_uninstaller):
                 _tmp_file_lines += [
                     f"{_log_prefix}Uninstalling '{_model}'...>>{LOG_PATH}\n",
