@@ -1,5 +1,5 @@
 import PySimpleGUI as psg
-import os, time, requests, json
+import os, sys, time, requests, json
 import subprocess, webbrowser
 
 DEBUG = True
@@ -328,42 +328,6 @@ class SGui():
             os.remove(self.started_manual_services_file)
         
         return "-done-"
-
-    def get_services_config(self, ignore_update=False):
-        if ignore_update:
-            with open( SERVICES_CONFIG_PATH ) as f_curr:
-                with open(LAST_SERVICES_CONFIG_PATH) as f_last:
-                    return yaml.load(f_curr, Loader=SafeLoader), yaml.load(f_last, Loader=SafeLoader)
-        _req_res = requests.get(LATEST_SERV_CONF_RAW)
-        if _req_res.status_code != 200:
-            return None
-        else:
-            # Create Latest Services Config File
-            with open(LAST_SERVICES_CONFIG_PATH, "w") as fw:
-                fw.write(_req_res.text)
-
-            # Create Services Config File if don't exist
-            if not os.path.isfile(SERVICES_CONFIG_PATH):
-                with open(LAST_SERVICES_CONFIG_PATH, "w") as fw:
-                    fw.write(_req_res.text)
-
-            with open( SERVICES_CONFIG_PATH ) as f_curr:
-                with open(LAST_SERVICES_CONFIG_PATH) as f_last:
-                    return yaml.load(f_curr, Loader=SafeLoader), yaml.load(f_last, Loader=SafeLoader)
-    def set_services_config(self):
-        with open(SERVICES_CONFIG_PATH, 'w',) as fw:
-            yaml.dump(self.services_config, fw, sort_keys=False)
-
-    def get_user_config(self):
-        if os.path.isfile(USER_CONFIG_PATH):
-            with open(USER_CONFIG_PATH) as f:
-                return yaml.load(f, Loader=SafeLoader)
-        return None
-    
-    def get_app_update(self):
-        _app_curr_v = self.services_config["manager_params"][self.system]["version"]
-        _app_last_v = self.latest_services_config["manager_params"][self.system]["version"]
-        return (_app_curr_v != _app_last_v), _app_curr_v, _app_last_v
     
     def upddate_derunner_log(self):
         if not self.exist_derunner:
@@ -395,7 +359,7 @@ class SGui():
             _gui_logger.set_vscroll_position(1)
 
     def fresh_window_size(self):
-        if self.user_config["models"] and self.derunner_fold:
+        if self.exist_dash and self.exist_log and self.derunner_fold:
             _size_x, _size_y = self.root.size
             self.column_set_size(self.root["_SCROLL_COL1_"], (_size_x-65, _size_y-205))
 
@@ -821,21 +785,23 @@ class SGui():
             # Get allready installed models
             _old_models = user_config["models"]
             # Instatiate result models
-            _res_models = dict(_old_models)
+            if _old_models:
+                _res_models = dict(_old_models)
+            else:
+                _res_models = {}
 
             # Uninstall FLAG
             if uninstall:
-                if isinstance(value, str):
-                    _rem_models = [value]
-                else:
-                    _rem_models = value
-                for _model in _rem_models:
-                    if _model in _res_models:
-                        _res_models.pop(_model)
+                if _res_models:
+                    if isinstance(value, str):
+                        _rem_models = [value]
+                    else:
+                        _rem_models = value
+                    for _model in _rem_models:
+                        if _model in _res_models:
+                            _res_models.pop(_model)
             else:
                 _new_models = value
-                if not _old_models:
-                    _old_models = {}
                 for _model, _version in _new_models.items():
                     if _model in _res_models:
                         if _res_models[_model] == _version:
@@ -1008,7 +974,7 @@ class SGui():
                 _disabled = True
             
             ## DeRunner Logger
-            if "desotaai/derunner" in _tools:
+            if self.exist_log:
                 print("        Setting Log Multiline feature")
                 self.exist_derunner = True
                 # _dashboard_layout.append([psg.Text('DeRunner Logger', font=self.header_f)])
@@ -1879,6 +1845,7 @@ class SGui():
             if self.exist_installer:
                 self.column_set_size(self.root["_SCROLL_COL2_"], (_size_x-65, _size_y-150))
 
+            # Trust me !
             self.root_size = self.root.size
     
     # - Search Dashboard
