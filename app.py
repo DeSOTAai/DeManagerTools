@@ -29,9 +29,17 @@ EVENT_TO_METHOD = {
     "derunner_log_head": "un_fold_derunner_log"
 }
 
-USER_PATH=os.path.expanduser('~')
-DESOTA_ROOT_PATH=os.path.join(USER_PATH, "Desota")
-APP_PATH=os.path.join(DESOTA_ROOT_PATH, "DeManagerTools")
+if getattr(sys, "frozen", False):
+    # The application is frozen
+    DIST_PATH = os.path.dirname(sys.executable)
+else:
+    # The application is not frozen
+    # Change this bit to match where you store your data files:
+    DIST_PATH = os.path.dirname(os.path.realpath(__file__))
+os.chdir(DIST_PATH)
+APP_PATH=os.path.dirname(DIST_PATH)
+DESOTA_ROOT_PATH=os.path.dirname(APP_PATH)
+USER_PATH=os.path.dirname(DESOTA_ROOT_PATH)
 LOG_PATH=os.path.join(DESOTA_ROOT_PATH, "demanager.log")
 TMP_PATH=os.path.join(DESOTA_ROOT_PATH, "tmp")
 if not os.path.isdir(TMP_PATH):
@@ -78,9 +86,11 @@ def get_platform():
 USER_SYS=get_platform()
 if USER_SYS=="win":
     EXECS_PATH = os.path.join(APP_PATH, "executables", "Windows")
+    USER=str(USER_PATH).split("\\")[-1]
 elif USER_SYS=="lin":
     EXECS_PATH = os.path.join(APP_PATH, "executables", "Linux")
-
+    USER=str(USER_PATH).split("/")[-1]
+print("USER:", USER)
 # Construct APP with PySimpleGui
 class SGui():
     # Class INIT
@@ -92,10 +102,13 @@ class SGui():
         self.tab_keys= [ '-TAB1-', '-TAB2-', '-TAB3-']
         self.themes = psg.ListOfLookAndFeelValues()
         self.current_theme = self.get_user_theme()
-        self.icon = os.path.join(APP_PATH, "Assets", "icon.ico")
         self.started_manual_services_file = os.path.join(TMP_PATH, "manual_services_started.txt")
         self.exist_log = os.path.isfile(LOG_PATH)
 
+        if USER_SYS == 'win':
+            self.icon = os.path.join(APP_PATH, "Assets", "icon.ico")
+        else:
+            self.icon = os.path.join(APP_PATH, "Assets", "icon.png")
         self.user_config = self.get_user_config()
         if not self.user_config:
             raise EnvironmentError()
@@ -117,7 +130,8 @@ class SGui():
         self.header_f = ("Helvetica", 14, "bold")
         self.title_f = ("Helvetica", 12, "bold")
         self.bold_f = ("Helvetica", 10, "bold")
-        self.default_f = psg.DEFAULT_FONT
+        self.default_f = ("Helvetica", 10)
+        # self.default_f = psg.DEFAULT_FONT
 
         
         #Define APP Just Started (False after check APP Update)
@@ -256,14 +270,21 @@ class SGui():
         # retrieved from https://stackoverflow.com/a/62226026
         so = open(_target_status_res, "w")
         _status_cmd = [get_status_path, "/nopause"] if USER_SYS == "win" else ["bash", get_status_path] if USER_SYS == "lin" else []
-        print("          State CMD:", _status_cmd)
-        _sproc = subprocess.Popen(
-            _status_cmd,
-            # stdout=subprocess.DEVNULL,
-            stdout=so,
-            stderr=so,
-            creationflags=subprocess.CREATE_NO_WINDOW
-        )
+        if USER_SYS=="win":
+            _sproc = subprocess.Popen(
+                _status_cmd,
+                # stdout=subprocess.DEVNULL,
+                stdout=so,
+                stderr=so,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+        else:
+            _sproc = subprocess.Popen(
+                _status_cmd,
+                # stdout=subprocess.DEVNULL,
+                stdout=so,
+                stderr=so
+            )
 
         returnCode = _sproc.wait()
         so.close()
@@ -280,7 +301,6 @@ class SGui():
 
     def set_installed_services(self, user_tools=None, user_models=None):
         if not (user_tools and user_models) or not (isinstance(user_tools, list) and isinstance(user_models, list)):
-            print("DEBUG -> set_installed_services (user_config['models']):", self.user_config)
             if self.user_config['models']:
                 for _user_service in list(self.user_config['models'].keys()):
                     if _user_service in self.tools_services:
@@ -292,8 +312,6 @@ class SGui():
             return
         self.user_tools = user_tools
         self.user_models = user_models
-        print("          Set User Tools:", self.user_tools)
-        print("          Set User Models:", self.user_models)
 
     def get_started_manual_services(self):
         if os.path.isfile(self.started_manual_services_file):
@@ -374,14 +392,18 @@ class SGui():
             USER=str(DESOTA_ROOT_PATH).split("/")[-2]
             os.system(f"chown -R {USER} {path}")
         return
-    
+
     #   > Create Assets Script
-    def create_asset_install_script(self, model_ids, manage_configs_flag_path, asset_sucess_path, progress=None) -> str:
+    def create_install_script(self, model_ids, manage_configs_flag_path, asset_sucess_path, progress=None) -> str:
         '''
         Create model install|upgrade script
 
         return sript path
         '''
+        # Before anything else:
+        # 1 - Remove models from user configs
+        self.edit_user_configs("models", model_ids, uninstall=True)
+        # 2 - TODO: Check if DeRunner is running any of the requested models
         ##                     ##
         # Loading Stuff - Begin #
         l_download_weigth=5
@@ -422,17 +444,6 @@ class SGui():
             _tmp_file_lines = ["@ECHO OFF\n"]
             _tmp_file_lines += GET_WIN_ADMIN
             
-            # 1.1 - Wait DeRunner Service STOP
-            if os.path.isfile(derunner_stop_path):
-                _tmp_file_lines += [
-                    ":wait_derunner_stop\n",
-                    f"{_start_cmd}{derunner_stop_path}\n"
-                    f'FOR /F "tokens=*" %%g IN (\'{derunner_status_path} /nopause\') do (SET derunner_status=%%g)\n',
-                    "IF %derunner_status% EQU SERVICE_RUNNING GOTO wait_derunner_stop\n"
-                ]
-                _steps = l_stop__weigth
-                _tmp_file_lines.append(f'echo {_steps} > {progress}\n')
-                
         elif USER_SYS=="lin":
             '''I know what i'm doing '''
             # Init
@@ -444,29 +455,17 @@ class SGui():
             _noecho=" &>/dev/nul"
             _log_prefix = "echo DeManagerTools.Install - "
             _manage_configs_loop = [
-                f"fmanager=$(cat {derunner_status_path})\n",
+                f"echo 0 >{manage_configs_flag_path}\n",
+                f"fmanager=$(cat {manage_configs_flag_path})\n",
                 'while [ "$fmanager" != "1" ]\n',
                 "do\n",
-                f"\tfmanager=$(cat {derunner_status_path})\n",
+                f"\tfmanager=$(cat {manage_configs_flag_path})\n",
                 "done\n",
             ]
             
              # 1 - BASH HEADER
             _tmp_file_lines = ["#!/bin/bash\n"]
             
-            # 1.1 - Wait DeRunner Service STOP
-            if os.path.isfile(derunner_stop_path):
-                _tmp_file_lines += [
-                    f"_serv_status=$({_start_cmd}{derunner_status_path})\n",
-                    'while [ "$_serv_status" = "SERVICE_RUNNING" ]\n',
-                    "do\n",
-                    f"\t{_start_cmd}{derunner_stop_path}"
-                    f"\t_serv_status=$({_start_cmd}{derunner_status_path})\n",
-                    "done\n",
-                ]
-                _steps = l_stop__weigth
-                _tmp_file_lines.append(f'echo {_steps} > {progress}\n')
-
         if isinstance(model_ids, str):
             model_ids = [model_ids]
         if isinstance(model_ids, dict):
@@ -497,12 +496,14 @@ class SGui():
 
 
         # 3 - Download + Uncompress to target folder <- Required Models
+        _target_folders = []
         for _count, _model in enumerate(model_ids):
             _asset_params=self.latest_services_config["services_params"][_model]
             _asset_sys_params=_asset_params[USER_SYS]
             _asset_repo=_asset_params["source_code"]
             _asset_commit=_asset_sys_params["commit"]
             _asset_project_dir = os.path.join(USER_PATH, _asset_sys_params["install_dir"] if "install_dir" in _asset_sys_params else _asset_sys_params["project_dir"])
+            _target_folders += [_asset_project_dir]
             _tmp_repo_dwnld_path=os.path.join(TMP_PATH, f"DeRunner_Dwnld_{_count}.zip")
             ## Download Commands
             if USER_SYS == "win":
@@ -580,6 +581,13 @@ class SGui():
         _steps = l_start__weigth if _steps == None else _steps+l_start__weigth
         _tmp_file_lines.append(f'echo {_steps} > {progress}\n')
 
+        if USER_SYS == "lin":
+            _target_folders += [
+                TMP_PATH,
+                LOG_PATH,
+                CONFIG_FOLDER
+            ]
+            [ _tmp_file_lines.append(f'chown -R {USER} {_path}\n') for _path in _target_folders]
 
         ## END OF FILE
         _tmp_file_lines.append('exit 0\n')
@@ -588,16 +596,19 @@ class SGui():
         # 6 - Create Installer Bat
         with open(target_path, "w") as fw:
             fw.writelines(_tmp_file_lines)
-        self.user_chown(target_path)
+
         return target_path, _steps
 
-    def create_asset_uninstall_script(self, model_ids, manage_configs_flag_path) -> str:
+    def create_uninstall_script(self, model_ids, manage_configs_flag_path) -> str:
         '''
         Create models uninstalation script
 
         return sript path
         '''
-        
+        # Before anything else:
+        # 1 - Remove models from user configs
+        self.edit_user_configs("models", model_ids, uninstall=True)
+        # 2 - TODO: Check if DeRunner is running any of the requested models
         # 1 - INIT + Scripts HEADER
         if USER_SYS == "win":
             '''I'm a windows nerd!'''
@@ -619,16 +630,6 @@ class SGui():
             _tmp_file_lines = ["@ECHO OFF\n"]
             _tmp_file_lines += GET_WIN_ADMIN
             
-            # 1.1 - Wait DeRunner Service STOP
-            derunner_stop_path = os.path.join(USER_PATH, "DeRunner", "executables", "Windows", "derunner.stop.bat")
-            derunner_status_path = os.path.join(USER_PATH, "DeRunner", "executables", "Windows", "derunner.status.bat")
-            if os.path.isfile(derunner_stop_path):
-                _tmp_file_lines += [
-                    ":wait_derunner_stop\n",
-                    f"{_start_cmd}{derunner_stop_path}\n"
-                    f'FOR /F "tokens=*" %%g IN (\'{derunner_status_path} /nopause\') do (SET derunner_status=%%g)\n',
-                    "IF %derunner_status% EQU SERVICE_RUNNING GOTO wait_derunner_stop\n"
-                ]
         elif USER_SYS=="lin":
             '''I know what i'm doing '''
             # Init
@@ -638,24 +639,18 @@ class SGui():
             _rm = "rm -rf "
             _noecho=" &>/dev/nul"
             _log_prefix = "echo DeManagerTools.Uninstall - "
-            # _app_python = os.path.join(APP_PATH, "env", "bin", "python3")
+            _manage_configs_loop = [
+                f"echo 0 >{manage_configs_flag_path}\n",
+                f"fmanager=$(cat {manage_configs_flag_path})\n",
+                'while [ "$fmanager" != "1" ]\n',
+                "do\n",
+                f"\tfmanager=$(cat {manage_configs_flag_path})\n",
+                "done\n",
+            ]
 
-             # 1 - BASH HEADER
+            # 1 - BASH HEADER
             _tmp_file_lines = ["#!/bin/bash\n"]
             
-            # 1.1 - Wait DeRunner Service STOP
-            derunner_stop_path = os.path.join(USER_PATH, "DeRunner", "executables", "Linux", "derunner.stop.bash")
-            derunner_status_path = os.path.join(USER_PATH, "DeRunner", "executables", "Linux", "derunner.status.bash")
-            if os.path.isfile(derunner_stop_path):
-                _tmp_file_lines += [
-                    f"_serv_status=$({_start_cmd}{derunner_status_path})\n",
-                    'while [ "$_serv_status" = "SERVICE_RUNNING" ]\n',
-                    "do\n",
-                    "IF %derunner_status% EQU SERVICE_RUNNING GOTO wait_derunner_stop\n"
-                    f"\t{_start_cmd}{derunner_stop_path}\n",
-                    f"\t_serv_status=$({_start_cmd}{derunner_status_path})\n",
-                    "done\n",
-                ]
 
         if isinstance(model_ids, str):
             model_ids = [model_ids]
@@ -684,23 +679,14 @@ class SGui():
 
         #     Update user.config model && services.config model
         _tmp_file_lines += _manage_configs_loop
-
-        # Force DeRunner Restart
-        _asset_sys_params=self.latest_services_config["services_params"]["desotaai/derunner"][USER_SYS]
-        _derunner_start = os.path.join(USER_PATH, _asset_sys_params["project_dir"], _asset_sys_params["execs_path"], _asset_sys_params["starter"])
-        f"{_log_prefix}Restarting DeRunner... >>{LOG_PATH}\n",
-        if USER_SYS == "win":
-            _tmp_file_lines += [
-                f' IF NOT EXIST {_derunner_start} GOTO noderunnerstart\n',
-                f'{_start_cmd}{_derunner_start}\n',
-                ":noderunnerstart\n"
+        
+        if USER_SYS == "lin":
+            _target_folders = [
+                TMP_PATH,
+                LOG_PATH,
+                CONFIG_FOLDER
             ]
-        elif USER_SYS == "lin":
-            _tmp_file_lines += [
-                f'if [ -f "{_derunner_start}" ]; then\n',
-                f'\t{_start_cmd}{_derunner_start}\n',
-                "fi\n"
-            ]
+            [ _tmp_file_lines.append(f'chown -R {USER} {_path}\n') for _path in _target_folders]
 
         ## END OF FILE
         _tmp_file_lines.append('exit 0\n')
@@ -708,10 +694,10 @@ class SGui():
         # 6 - Create Uninstaller Script
         with open(target_path, "w") as fw:
             fw.writelines(_tmp_file_lines)
-        self.user_chown(target_path)
+
         return target_path
 
-    def create_asset_startstop_script(self, model_ids, state) -> str:
+    def create_startstop_script(self, model_ids, state) -> str:
         '''
         Create models start|stop script
 
@@ -731,7 +717,6 @@ class SGui():
             target_path = os.path.join(TMP_PATH, f"tmp_model_install{int(time.time())}.bat")
             _start_cmd="start /W /B "
             _log_prefix = "ECHO DeManagerTools." + "Stop" if not state else "Start" +  " - "
-            # _app_python = os.path.join(APP_PATH, "env", "python")
             # 1 - BAT HEADER
             _tmp_file_lines = ["@ECHO OFF\n"]
             _tmp_file_lines += GET_WIN_ADMIN
@@ -741,9 +726,7 @@ class SGui():
             target_path = os.path.join(TMP_PATH, f"tmp_model_install{int(time.time())}.bash")
             _start_cmd="bash "
             _log_prefix = "echo DeManagerTools." + "Stop" if not state else "Start" +  " - "
-            # _app_python = os.path.join(APP_PATH, "env", "bin", "python3")
-
-             # 1 - BASH HEADER
+            # 1 - BASH HEADER
             _tmp_file_lines = ["#!/bin/bash\n"]
 
         if isinstance(model_ids, str):
@@ -768,6 +751,12 @@ class SGui():
                     f"{_log_prefix}{_log} '{_model}'...>>{LOG_PATH}\n",
                     f'{_start_cmd}{_asset_state}\n',
                 ]
+        if USER_SYS == "lin":
+            _target_folders += [
+                TMP_PATH,
+                LOG_PATH
+            ]
+            [ _tmp_file_lines.append(f'chown -R {USER} {_path}\n') for _path in _target_folders]
 
         ## END OF FILE - Delete Bat at end of instalation 
         ### WINDOWS - retrieved from https://stackoverflow.com/a/20333152
@@ -777,9 +766,39 @@ class SGui():
         # 6 - Create Start|Stop Script
         with open(target_path, "w") as fw:
             fw.writelines(_tmp_file_lines)
-        self.user_chown(target_path)
+
         return target_path
 
+    def create_dmt_lauch_script(self, launch_res_path, dmt_exe) -> str:
+        '''
+        Required only for Linux - gnome-terminal
+        '''
+        _time = int(time.time())
+        target_path=os.path.join(TMP_PATH, f"dmt_start_wait{_time}.bash")
+        dmt_launch_template_path = os.path.join(EXECS_PATH, "launch_template.bash")
+        dmt_exe_dir = os.path.dirname(dmt_exe)
+        
+        ## DEBUG
+        debub_path=os.path.join(TMP_PATH, f"UPG_DEBUG{_time}.txt")
+        ## DEBUG
+
+        # Read Template
+        with open(dmt_launch_template_path, "r") as fr:
+            dmt_launch = fr.read()
+        # Construct DMT upgrade script from template
+        _translate_dic={
+            "__exe_dir__": dmt_exe_dir,
+            "__exe_path__": dmt_exe,
+            "__launch_flag__": launch_res_path,
+            "__debug__": debub_path
+        }
+        for k, v in _translate_dic.items():
+            dmt_launch = dmt_launch.replace(k, v)
+
+        with open(target_path, "w") as fw:
+            fw.write(dmt_launch)
+            
+        return target_path
     def create_dmp_upgrade_script(self, confirm=False) -> str:
         '''
         Create DeManagerTools Upgrade scrip
@@ -822,12 +841,23 @@ class SGui():
                     return None
 
             # System VARS
+            tmp_zip_download = os.path.join(TMP_PATH, f"upgrade_dmt_v{latest_version}_{_time}.zip")
+            dmt_exe_dir = os.path.join(APP_PATH, "dist")
             if USER_SYS == "win":
                 dmt_upgrade_template_path = os.path.join(EXECS_PATH, "update.template.bat")
                 dmt_upgrade_target = os.path.join(TMP_PATH, f"upgrade_dmt_v{latest_version}_{_time}.bat")
-                tmp_zip_download = os.path.join(TMP_PATH, f"upgrade_dmt_v{latest_version}_{_time}.zip")
-                dmt_exe_path = os.path.join(APP_PATH, "dist",  "Desota - Manager Tools.exe")
-            
+                dmt_exe_path = os.path.join(dmt_exe_dir,  '"Desota - Manager Tools.exe"')
+                dmt_launch_flag_path=None
+            elif USER_SYS == "lin":
+                dmt_upgrade_template_path = os.path.join(EXECS_PATH, "update.template.bash")
+                dmt_upgrade_target = os.path.join(TMP_PATH, f"upgrade_dmt_v{latest_version}_{_time}.bash")
+                dmt_exe_path = os.path.join(dmt_exe_dir,  '"Desota - Manager Tools"')
+                dmt_launch_flag_path = os.path.join(TMP_PATH, f"dmt_lauch_wait_flag{_time}.txt")
+                dmt_launch_path=self.create_dmt_lauch_script(dmt_launch_flag_path, dmt_exe_path)
+                pid=os.fork()
+                if pid==0: # new process
+                    os.system(f'timeout 90s bash -c "/bin/bash {dmt_launch_path}" && rm -rf {dmt_launch_path}')
+                    exit()
             
             # Read Template
             with open(dmt_upgrade_template_path, "r") as fr:
@@ -837,21 +867,26 @@ class SGui():
             _translate_dic={
                 "__program_dir__": APP_PATH,
                 "__backup_dir__": _backup_path,
-                "__program_exe__": f'"{dmt_exe_path}"',
+                "__program_exe__": dmt_exe_path,
                 "__download_url__": manager_sys_params["build_url"],
                 "__tmp_compress_file__": tmp_zip_download,
                 "__version__": latest_version,
                 "__demanager_log__": LOG_PATH,
-                "__upgrade_path__": dmt_upgrade_target
+                "__upgrade_path__": dmt_upgrade_target,
+                "__user__": USER, # only required for linux
+                "__launch_flag__": dmt_launch_flag_path # only required for linux
             }
             for k, v in _translate_dic.items():
+                if not v:
+                    continue
                 dmt_upgrade = dmt_upgrade.replace(k, v)
-
             with open(dmt_upgrade_target, "w") as fw:
                 fw.write(dmt_upgrade)
-
+            
             return dmt_upgrade_target
+        
         return None
+    
 
     #   > Grab User Configurations
     def get_user_config(self) -> dict:
@@ -989,11 +1024,9 @@ class SGui():
         for _k, _v in self.user_config['models'].items():
             if _k not in self.tools_services:
                 continue
-            print("          Tool ID  :", _k)
             _tool_params = self.services_config["services_params"][_k]
             _tool_sys_params = _tool_params[USER_SYS]
             _tool_desc = _tool_params["short_description"]
-            print("          Tool Desc:", _tool_desc)
             _tool_status_path = os.path.join(USER_PATH, _tool_sys_params["project_dir"], _tool_sys_params["execs_path"], _tool_sys_params["status"]) if _tool_sys_params["status"] else None
 
             if _tool_status_path==None:
@@ -1001,7 +1034,6 @@ class SGui():
             else:
                 _tool_status = self.get_service_status(_tool_status_path).lower()
                 _tool_status = "-" if _tool_status==None else _tool_status
-            print("          Tool Stat:", _tool_status, "\n")
 
             if search_filter:
                 if search_filter.lower() in _k.lower() or search_filter.lower() in _tool_desc.lower():
@@ -1010,7 +1042,6 @@ class SGui():
             else:
                 _tools_data.append([_k, _tool_status, _tool_desc])
                 _tools.append(_k)
-        print("          Tool Filt:", search_filter, "\n")
             
         return _tools_data, _tools
     def get_models_data(self, search_filter=None):
@@ -1019,18 +1050,15 @@ class SGui():
         for _k, _v in self.user_config['models'].items():
             if _k in self.tools_services:
                 continue
-            print("          Model ID  :", _k)
             _model_params = self.services_config["services_params"][_k]
             _model_sys_params = _model_params[USER_SYS]
             _model_desc = _model_params["short_description"]
-            print("          Model Desc:", _model_desc)
             _model_status_path = os.path.join(USER_PATH, _model_sys_params["project_dir"], _model_sys_params["execs_path"], _model_sys_params["status"]) if "status" in _model_sys_params and _model_sys_params["status"] else None
             if _model_status_path==None:
                 _model_status = "-"
             else:
                 _model_status = self.get_service_status(_model_status_path).lower()
                 _model_status = "-" if _model_status==None else _model_status
-            print("          Model Stat:", _model_status, "\n")
 
             if search_filter:
                 if search_filter.lower() in _k.lower() or search_filter.lower() in _model_desc.lower():
@@ -1039,12 +1067,10 @@ class SGui():
             else:
                 _models_data.append([_k, _model_status, _model_desc])
                 _models.append(_k)
-        print("          Model Filt:", search_filter, "\n")
         return _models_data, _models
     def construct_monitor_models_tab(self):
         # No Models Available
         if not self.user_config['models']:
-            print("        No Models found in user congigurations")
             self.exist_dash = False
             return [
                 [psg.Text('No Model Installed', font=self.header_f)],
@@ -1055,7 +1081,6 @@ class SGui():
             self.exist_dash = True
             _dashboard_layout = []
             # Tools Table
-            print("        Getting tools data")
             _tools_data, _tools = self.get_tools_data()
             if _tools_data:
                 _tool_table_header = ["Tool", "Service Status", "Description"]
@@ -1078,7 +1103,6 @@ class SGui():
                 # _dashboard_layout.append([psg.Graph()]) #TODO
             
             # Models Table
-            print("        Getting models data")
             _models_data, _models = self.get_models_data()
             if _models_data:
                 _model_table_header = ["AI Model", "Service Status", "Description"]
@@ -1103,7 +1127,6 @@ class SGui():
             self.set_installed_services(user_tools=_tools, user_models=_models)
 
             # Handle Stop Manual Services
-            print("        Getting started manual models")
             _started_malual_services = self.get_started_manual_services()
             if _started_malual_services:
                 _disabled = False
@@ -1112,10 +1135,7 @@ class SGui():
             
             ## DeRunner Logger
             if self.exist_log:
-                print("        Setting Log Multiline feature")
                 self.exist_derunner = True
-                # _dashboard_layout.append([psg.Text('DeRunner Logger', font=self.header_f)])
-                # _dashboard_layout.append([psg.Multiline(size=(None, 10), reroute_cprint=True, key='derunner_log', expand_x=True, expand_y=False)])
                 return [
                     [psg.Input("Search", key='searchDash', expand_x=True)],
                     [psg.Text('DeSOTA  Log ▲', tooltip="live log of models requests", key="derunner_log_head", enable_events=True, font=self.title_f)],
@@ -1448,7 +1468,6 @@ class SGui():
             else:
                 self.set_elem_vis(self.at_separator, ("at", 0), True)
         elif self.exist_at_sep:
-            print("\n\n\n\nIVE REACHED HERE\n\n\n")
             self.set_elem_vis(self.at_separator, ("at", 0), False)
 
         # Upgradable Models / Tools
@@ -1472,7 +1491,6 @@ class SGui():
                 _install_layout += _install_models
         
         # if DEBUG:
-        #     print("INSTALL CONF:", json.dumps(self.install_configs, indent=2))
         if get_layout:
             return _install_layout
     def construct_install_tab(self):
@@ -1563,21 +1581,28 @@ class SGui():
                 
         _ok_res = psg.popup_ok(f"You will install the following models: {json.dumps(_models_2_upgrade, indent=4)}\nPress Ok to proceed", title="", icon=self.icon)
         if not _ok_res:
-            print("OK RES", _ok_res)
             return "-ignore-"
         
-        _install_prog_file = os.path.join(APP_PATH, "install_progress.txt")
+        _install_prog_file = os.path.join(TMP_PATH, "install_progress.txt")
         _wait_path=os.path.join(TMP_PATH, f"{_time}install_waiter.txt")
         _sucess_path=os.path.join(TMP_PATH, f"{_time}install_result.txt")
-        _install_script_path, _install_steps = self.create_asset_install_script(_models_2_upgrade, _wait_path, _sucess_path, progress=_install_prog_file)
+        _install_script_path, _install_steps = self.create_install_script(_models_2_upgrade, _wait_path, _sucess_path, progress=_install_prog_file)
         if not os.path.isfile(_install_script_path):
             return "-ignore-"
+
         if USER_SYS == "win":
-            _install_cmd=[_install_script_path]
-        elif USER_SYS == "lin":
-            _install_cmd=["pkexec", "bash", _install_script_path]
-            
-        _child_proc = subprocess.Popen(_install_cmd)
+            tmp_install_script=None
+            _child_proc = subprocess.Popen([_install_script_path])
+
+        if USER_SYS == "lin":
+            tmp_install_script= os.path.join(TMP_PATH, f"delete{int(time.time())}.bat")
+            with open(tmp_install_script, "w") as fw:
+                fw.writelines([
+                    "#!/bin/bash\n",
+                    f'gnome-terminal --wait -- bash -c "pkexec /bin/bash {_install_script_path}"\n',
+                    f"exit 0"
+                ])
+            _child_proc = subprocess.Popen(['bash', tmp_install_script])
             
         self.root['startInstall'].update(disabled=True)
         self.root['installPBAR'].update(current_count=0)
@@ -1607,7 +1632,6 @@ class SGui():
                 if _wait_state_read == "0":
                     with open(_sucess_path, "r") as fr:
                         _install_res = fr.read().splitlines()
-                    print("SUCESS CONTENT:", _install_res)
                     if _install_res:
                         # Create dict with model, version pairs
                         _install_conf= {}
@@ -1622,16 +1646,19 @@ class SGui():
                         if _install_conf:
                             self.edit_user_configs("models", _install_conf)
                             self.upd_services_params()
-                    while True:
-                        try:
-                            with open(_wait_path, "w") as fw:
-                                fw.write("1")
-                            break
-                        except:
-                            continue
+                    try:
+                        with open(_wait_path, "w") as fw:
+                            fw.write("1")
+                    except:
+                        if os.path.isfile(_wait_path):
+                            os.remove(_wait_path)
+                        with open(_wait_path, "w") as fw:
+                            fw.write("1")
 
             if _child_proc.poll() == 0:
-                for _file in [_install_prog_file, _wait_path, _sucess_path]:
+                for _file in [_install_prog_file, _wait_path, _sucess_path, tmp_install_script]:
+                    if not _file:
+                        continue
                     if os.path.isfile(_file):
                         os.remove(_file)
                 break
@@ -1645,12 +1672,10 @@ class SGui():
         _ok_res = psg.popup_ok(f"Instalation Completed!\n\nThe APP will restart!\n\nPress Ok to proceed", title="", icon=self.icon)
         if not _ok_res:
             return "-ignore-"
-        
         return "-restart-"
 
     # - Tool Table row selected
     def tool_table_row_selected(self, values):
-        # print(f" [tool_table_row_selected] -> {json.dumps(self.tools_selected, indent=2)}")
         if self.tools_click:
             for _new_sel in values["tool_table"]:
                 if _new_sel in self.tools_selected:
@@ -1665,7 +1690,6 @@ class SGui():
     
     # - Model Table row selected
     def model_table_row_selected(self, values):
-        # print(f" [model_table_row_selected] -> {json.dumps(self.models_selected, indent=2)}")
         if self.models_click:
             for _new_sel in values["model_table"]:
                 if _new_sel in self.models_selected:
@@ -1819,11 +1843,22 @@ class SGui():
                     # Arguments
                     cli_cmd.append(mc)
             
-            print(f" [ DEBUG ] - CLI Model cmd: {cli_cmd}")
-                
-            _sproc = subprocess.Popen(
-                cli_cmd,
-                creationflags = subprocess.CREATE_NEW_CONSOLE
+            if USER_SYS == "win":
+                _sproc = subprocess.Popen(
+                    cli_cmd,
+                    creationflags = subprocess.CREATE_NEW_CONSOLE
+                ).poll()
+            else:
+                tmp_cli_script= os.path.join(TMP_PATH, f"delete{int(time.time())}.bat")
+                cli_cmd_str=" ".join(cli_cmd)
+                with open(tmp_cli_script, "w") as fw:
+                    fw.writelines([
+                        "#!/bin/bash\n",
+                        f'gnome-terminal --wait -- bash -c "{cli_cmd_str}; exec bash"\n',
+                        f'rm -- "{tmp_cli_script}" & exit 0'
+                    ])
+                _sproc = subprocess.Popen(
+                    ['bash', tmp_cli_script]
                 ).poll()
             _res = "-done-"
             
@@ -1871,20 +1906,26 @@ class SGui():
             return "-ignore-"
         
         # - UNINSTALL CONFIRMED BELLOW
-        
-        if USER_SYS == "win":
-            _cmd_prefix=[]
-        if USER_SYS == "lin":
-            _cmd_prefix=["pkexec", "bash"]
-
-        
         _wait_path=os.path.join(TMP_PATH, f"{_time}uninstall_waiter.txt")
-        _uninstall_script_path = self.create_asset_uninstall_script(_models_2_uninstall, _wait_path)
-        _uninstall_cmd = _cmd_prefix + [_uninstall_script_path]
+        _uninstall_script_path = self.create_uninstall_script(_models_2_uninstall, _wait_path)
         if not os.path.isfile(_uninstall_script_path):
             return "-ignore-"
+        
+        if USER_SYS == "win":
+            tmp_uninstall_script = None
+            _child_proc = subprocess.Popen([_uninstall_script_path])
 
-        _child_proc = subprocess.Popen(_uninstall_cmd)
+        if USER_SYS == "lin":
+            tmp_uninstall_script= os.path.join(TMP_PATH, f"delete{int(time.time())}.bat")
+            with open(tmp_uninstall_script, "w") as fw:
+                fw.writelines([
+                    "#!/bin/bash\n",
+                    f'gnome-terminal --wait -- bash -c "pkexec /bin/bash {_uninstall_script_path}"\n',
+                    f"exit 0\n"
+                ])
+            _child_proc = subprocess.Popen(['bash', tmp_uninstall_script])
+            
+
         while True:
             if os.path.isfile(_wait_path):
                 with open(_wait_path, "r") as fr:
@@ -1892,13 +1933,17 @@ class SGui():
                 if _wait_state_read == "0":
                     self.edit_user_configs("models", _models_2_uninstall, uninstall=True)
                     self.upd_services_params()
-                    while True:
-                        try:
-                            with open(_wait_path, "w") as fw:
-                                fw.write("1")
-                            break
-                        except:
-                            continue
+                    if tmp_uninstall_script and os.path.isfile(tmp_uninstall_script):
+                        os.remove(tmp_uninstall_script)
+
+                    try:
+                        with open(_wait_path, "w") as fw:
+                            fw.write("1")
+                    except:
+                        if os.path.isfile(_wait_path):
+                            os.remove(_wait_path)
+                        with open(_wait_path, "w") as fw:
+                            fw.write("1")
 
             if _child_proc.poll() == 0:
                 if os.path.isfile(_wait_path):
@@ -1915,7 +1960,6 @@ class SGui():
         _ok_res = psg.popup("Uninstalation Completed!\n\nThe APP need to restart!\nPress Ok to proceed", title="", icon=self.icon)
         if not _ok_res:
             return "-ignore-"
-        
         return "-restart-"
 
     # - Stop All Started Manual Start/Stop Services
@@ -1941,7 +1985,7 @@ class SGui():
             _model_sys_params = self.services_config["services_params"][model][USER_SYS]
             _stop_model_path = os.path.join(USER_PATH, _model_sys_params["project_dir"], _model_sys_params["execs_path"], _model_sys_params["stoper"])
         
-        _stop_model_path = self.create_asset_startstop_script(_started_manual_services, False)
+        _stop_model_path = self.create_startstop_script(_started_manual_services, False)
         _stop_model_cmd = _cmd_prefix + [_stop_model_path]
         _sproc = subprocess.Popen(_stop_model_cmd)
         while True:
@@ -1968,8 +2012,6 @@ class SGui():
             element.Widget.pack_propagate(0)
             element.set_size(size)
     def window_configure(self, values):
-        # print(f"\n\n[ window_configure ] - Memory Size: {self.root_size}\n[ window_configure ] - Current Size: {self.root.size}\n\n")
-        # print(f"{self.root_size} != {self.root.size} : {self.root_size != self.root.size}")
         if self.root_size != self.root.size:
             _size_x, _size_y = self.root.size
 
@@ -2015,17 +2057,12 @@ class SGui():
     
     # - Search Install
     def focus_in_search_install(self, values):
-        if DEBUG:
-            print("DEBUG:", "Install Search Focus")
         self.root["searchInstall"].update('')
     def focus_out_search_install(self, values):
-        if DEBUG:
-            print("DEBUG:", "Install Search Focus Out")
         self.root["searchInstall"].update(self.mem_install_search if self.mem_install_search else 'Search')
 
     def search_install(self, values):
         _search_filter = values['searchInstall']
-        # print("SEARCH QUERY:", _search_filter)
         if _search_filter.strip() != "":
             self.mem_install_search = _search_filter.strip()
             self.get_install_layout(get_layout=False, search_filter=_search_filter)
@@ -2034,15 +2071,12 @@ class SGui():
             self.get_install_layout(get_layout=False)
 
         _taget_dict = {key:values for key, values in self.install_configs.items() if key in ["at","up", "am"]}
-        print()
         for _, _key in _taget_dict.items():
             for _, _cycle in _key.items():
                 for _, _data in _cycle.items():
                     self.root.refresh()
                     _elem, _vis = _data["key"], _data["visibility"]
-                    print("Search Install TAB:", _data)
                     self.root[_elem].update(visible=_vis)
-        print()
                 
         return "-done-"
         
@@ -2156,16 +2190,18 @@ def main():
         if USER_SYS == "win":
             os.system("start " + _upgrade_sript_path)
         elif USER_SYS == "lin":
-            # _reinstall_cmd = ['/bin/bash', _upgrade_sript_path]  
-            # # inspired in https://stackoverflow.com/a/60280256
-            # subprocess.Popen(
-            #     _reinstall_cmd,
-            #     stdout=None, 
-            #     stderr=None,
-            #     universal_newlines=True,
-            #     preexec_fn=os.setpgrp 
-            # )
-            os.system('/bin/bash ' + _upgrade_sript_path)
+            tmp_script= os.path.join(TMP_PATH, f"delete{int(time.time())}_dmt_upg.bat")
+            with open(tmp_script, "w") as fw:
+                fw.writelines([
+                    "#!/bin/bash\n",
+                    f'gnome-terminal --wait -- bash -c "pkexec /bin/bash {_upgrade_sript_path}; exec bash" & \
+                    rm -- "{tmp_script}" & \
+                    exit 0'
+                ])
+            pid=os.fork()
+            if pid==0: # new process
+                os.system(f"/bin/bash {tmp_script} &")
+                exit()
         sgui.sgui_exit()
         return 0
 

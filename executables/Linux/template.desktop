@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version=2.0
+Type=Application
+Terminal=false
+Path=__app_path__
+Exec=__app_exe__
+Name=Desota - Manager Tools
+Icon=__desktop_icon__
