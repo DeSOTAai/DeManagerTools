@@ -2135,6 +2135,19 @@ def main():
     print("App Started!")
 
 
+    # Get APP Status - Prevent Re-Open
+    if sgui.get_app_status() == "1":
+        _app_upgrade = psg.popup_yes_no(
+            f"This program is allready open or has not been properly closed!\nDo you want to continue?",
+            title="DeSOTA - Manager Tools",
+            icon = sgui.icon,
+        )
+        if _app_upgrade != "Yes":
+            return 0
+    else:
+        sgui.set_app_status(1)
+
+
     # Search 4 Upg at startup
     print("Search 4 Upgrades")
     _upgrade_sript_path = sgui.create_dmp_upgrade_script()
@@ -2157,17 +2170,7 @@ def main():
         return 0
 
 
-    # Get APP Status - Prevent Re-Open
-    if sgui.get_app_status() == "1":
-        _app_upgrade = psg.popup_yes_no(
-            f"This program is allready open or has not been properly closed!\nDo you wish to continue?",
-            title="DeSOTA - Manager Tools",
-            icon = sgui.icon,
-        )
-        if _app_upgrade != "Yes":
-            return 0
-    else:
-        sgui.set_app_status(1)
+    
     _tab_selected = False
     _mem_open_tab = sgui.current_tab
     while True:

@@ -73,7 +73,7 @@ __program_exe__
 IF errorlevel 1 GOTO upgrade_error
 ECHO %sucess%Done%ansi_end%
 ECHO Upgrading DeManagerTools v__version__ : SUCESS >> __demanager_log__
-IF EXIST __backup_dir__ rmdir /S /Q __program_dir__ >NUL 2>NUL
+IF EXIST __backup_dir__ rmdir /S /Q __backup_dir__ >NUL 2>NUL
 ::retrieved from https://stackoverflow.com/a/20333152
 (goto) 2>nul & del "%~f0"\n
 
