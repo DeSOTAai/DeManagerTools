@@ -42,17 +42,12 @@ ECHO %sucess%Done%ansi_end%
 
 :: Delete Project Folder
 ECHO.
-ECHO %info_h1%Deleting Program Folder%ansi_end%
+ECHO %info_h1%Removing Program%ansi_end%
 IF EXIST __program_dir__ rmdir /S /Q __program_dir__ >NUL 2>NUL
 
 :: Check if folder still exist
 IF EXIST __program_dir__ (
-  ECHO %fail%Delete Program Error%ansi_end%
-  ECHO   Tip1: Close anything related to this program 
-  ECHO   Tip2: Delete this folder __program_dir__
-  ECHO   Tip3: Re-Start your Computer
-  ECHO %fail%Take any of the tips above before continuing%ansi_end%
-  PAUSE
+  ECHO %fail%Done%ansi_end%
 )
 IF NOT EXIST __program_dir__ (
   ECHO %sucess%Done%ansi_end%
@@ -69,13 +64,15 @@ ECHO %sucess%Done%ansi_end%
 :: Start Program
 ECHO.
 ECHO %info_h1%Starting Program%ansi_end%
+ECHO %info_h1%WARNING: DON'T CLOSE THIS TERMINAL!%ansi_end%
+ECHO %sucess%Configurations ongoing%ansi_end%
 __program_exe__
 IF errorlevel 1 GOTO upgrade_error
 ECHO %sucess%Done%ansi_end%
 ECHO Upgrading DeManagerTools v__version__ : SUCESS >> __demanager_log__
 IF EXIST __backup_dir__ rmdir /S /Q __backup_dir__ >NUL 2>NUL
 ::retrieved from https://stackoverflow.com/a/20333152
-(goto) 2>nul & del "%~f0"\n
+(goto) 2>nul & del "%~f0" & exit
 
 :upgrade_error
 ECHO %fail%Fail%ansi_end%

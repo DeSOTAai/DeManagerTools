@@ -49,8 +49,8 @@ echo "Done"
 # Start Program
 echo
 echo "Starting Program"
-echo "WARNING: DON'T CLOSE ME, PLEASE!"
-echo "[ After you close the program I'll close automatically. ]"
+echo "WARNING: DON'T CLOSE THIS TERMINAL!"
+echo "Configurations ongoing"
 chown -R __user__ __program_dir__
 echo "3">__launch_flag__
 chown -R __user__ __launch_flag__  
