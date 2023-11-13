@@ -21,14 +21,14 @@ DeManagerTools consists on a GUI to:
 ![dmt_installer](Assets/readme_files/dmt_installer/dmt_installer.gif)
 <br /><br />
 
-[![Install DeManagerTools](https://img.shields.io/static/v1?label=Desota%20-%20Manager%20Tools&message=Windows+Installer&color=blue&logo=windows)](https://github.com/DeSOTAai/DeManagerTools/releases/download/v0.1.0/v0.1.0-win64.zip)
+[![Install DeManagerTools](https://img.shields.io/static/v1?label=Desota%20-%20Manager%20Tools&message=Windows+Installer&color=blue&logo=windows)](https://github.com/DeSOTAai/DeManagerTools/releases/download/v0.1.0/dmt_installer-v0.1.0-win64.zip)
 
 * [Step-by-Step Guide](https://github.com/DeSOTAai/DeManagerTools/tree/main/Assets/readme_files/dmt_installer/win-sbs)
 * [Source Code](https://github.com/DeSOTAai/DeManagerTools/releases/download/v0.1.0/dmt_installer-source_code_v0.1.0-win64.zip)
 
 <br />
 
-[![Install DeManagerTools](https://img.shields.io/static/v1?label=Desota%20-%20Manager%20Tools&message=Linux+Installer&color=blue&logo=linux)](https://desota.net/assistant/download.php?file=demanagertools&system=win)
+[![Install DeManagerTools](https://img.shields.io/static/v1?label=Desota%20-%20Manager%20Tools&message=Linux+Installer&color=blue&logo=linux)]https://github.com/DeSOTAai/DeManagerTools/releases/download/v0.1.0/dmt_installer-v0.1.0-win64.zip)
 
 * [Step-by-Step Guide](https://github.com/DeSOTAai/DeManagerTools/tree/main/Assets/readme_files/dmt_installer/lin-sbs)
 * [Source Code](https://github.com/DeSOTAai/DeManagerTools/releases/download/v0.1.0/dmt_installer-source_code_v0.1.0-win64.zip)

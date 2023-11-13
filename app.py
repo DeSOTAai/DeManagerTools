@@ -3,10 +3,14 @@ import os, sys, time, requests, json
 import subprocess, webbrowser
 
 DEBUG = True
-DESOTA_TOOLS_SERVICES = {    # Desc -> Service: Checkbox Disabled = REQUIRED
-    "desotaai/derunner": True,
-    "franciscomvargas/deurlcruncher": False
-}
+
+# DEPRECATED:
+#
+# DESOTA_TOOLS_SERVICES = {    # Desc -> Service: Checkbox Disabled = REQUIRED
+#     "desotaai/derunner": True,
+#     "franciscomvargas/deurlcruncher": False
+# }
+
 EVENT_TO_METHOD = {
     "TABMOVE": "move_2_tab",
     "WEBREQUEST": "open_url",
@@ -97,7 +101,6 @@ class SGui():
     def __init__(self, ignore_update=False) -> None:
         #Class Vars
         self.debug = DEBUG
-        self.tools_services = DESOTA_TOOLS_SERVICES
         self.event_to_method = EVENT_TO_METHOD
         self.tab_keys= [ '-TAB1-', '-TAB2-', '-TAB3-']
         self.themes = psg.ListOfLookAndFeelValues()
@@ -116,6 +119,8 @@ class SGui():
         self.services_config, self.latest_services_config = self.get_services_config(ignore_update=ignore_update)
         if not self.services_config:
             raise EnvironmentError()
+        
+        self.tools_services = self.get_tools_services()
         
         #define pysimplegui theme
         psg.theme(self.current_theme)
@@ -801,11 +806,11 @@ class SGui():
         return target_path
     def create_dmp_upgrade_script(self, confirm=False) -> str:
         '''
-        Create DeManagerTools Upgrade scrip
+        Create DeManagerTools Upgrade script
 
         `confirm` : Shortwire User Confirm Upgrade 
 
-        Returns scripy path
+        Returns script path
         '''
         _time=int(time.time())
         # Retrieve Identity
@@ -947,6 +952,14 @@ class SGui():
         with open( SERVICES_CONFIG_PATH ) as f_curr:
             with open(LAST_SERVICES_CONFIG_PATH) as f_last:
                 return yaml.load(f_curr, Loader=SafeLoader), yaml.load(f_last, Loader=SafeLoader)
+    
+    #   > Return parsed tools_services {"service":"required", ...}
+    def get_tools_services(self) -> dict:
+        _tools_services = {}
+        for service, params in self.latest_services_config["services_params"].items():
+            if not params["submodel"] and params["service_type"] == "tool":
+                _tools_services[service] = params["required"]
+        return _tools_services
     
     # Edit User Configs
     def edit_user_configs(self, key, value, uninstall=False):
