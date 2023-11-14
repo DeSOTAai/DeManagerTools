@@ -1250,6 +1250,10 @@ class SGui():
              
         for count, (_desota_serv, _cb_disabled) in enumerate(self.tools_services.items()):
             if not self.user_config['models'] or _desota_serv not in self.user_config['models']:
+                _platform_params = self.latest_services_config["services_params"][_desota_serv][USER_SYS]
+                if not "commit" in _platform_params or not _platform_params["commit"]:
+                    continue
+                _commit = self.latest_services_config["services_params"][_desota_serv][USER_SYS]
                 _desc = self.latest_services_config["services_params"][_desota_serv]["short_description"]
                 _source = self.latest_services_config["services_params"][_desota_serv]["source_code"]
                 
@@ -1403,6 +1407,9 @@ class SGui():
 
         for count, (_k, _v)in enumerate(self.latest_services_config['services_params'].items()):
             if (self.user_config['models'] and _k in self.user_config['models'] ) or (_v["submodel"] == True) or (_k in self.tools_services):
+                continue
+            _platform_params = self.latest_services_config["services_params"][_k][USER_SYS]
+            if not "commit" in _platform_params or not _platform_params["commit"]:
                 continue
             _desc = self.latest_services_config["services_params"][_k]["short_description"]
             _source = self.latest_services_config["services_params"][_k]["source_code"]
