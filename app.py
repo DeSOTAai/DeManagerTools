@@ -1855,6 +1855,8 @@ class SGui():
             cli_cmd = []
             for mc in _model_params[USER_SYS][_model_params["model_cli"]]:
                 # PATH TEST (get files and arguments)
+                if not isinstance(mc, str):
+                    mc = str(mc)
                 _tmp_path = os.path.join(USER_PATH, mc)
                 if os.path.isfile(_tmp_path):
                     # Files
@@ -1869,7 +1871,7 @@ class SGui():
                     creationflags = subprocess.CREATE_NEW_CONSOLE
                 ).poll()
             else:
-                tmp_cli_script= os.path.join(TMP_PATH, f"delete{int(time.time())}.bat")
+                tmp_cli_script= os.path.join(TMP_PATH, f"delete{int(time.time())}.bash")
                 cli_cmd_str=" ".join(cli_cmd)
                 with open(tmp_cli_script, "w") as fw:
                     fw.writelines([
