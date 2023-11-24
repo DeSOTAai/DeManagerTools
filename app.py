@@ -43,6 +43,7 @@ os.chdir(DIST_PATH)
 APP_PATH=os.path.dirname(DIST_PATH)
 DESOTA_ROOT_PATH=os.path.dirname(APP_PATH)
 USER_PATH=os.path.dirname(DESOTA_ROOT_PATH)
+DESOTA_MODELS_PATH=os.path.join(DESOTA_ROOT_PATH, "Desota_Models")
 LOG_PATH=os.path.join(DESOTA_ROOT_PATH, "demanager.log")
 TMP_PATH=os.path.join(DESOTA_ROOT_PATH, "tmp")
 if not os.path.isdir(TMP_PATH):
@@ -548,7 +549,8 @@ class SGui():
                 "echo Uncompressing Project to target folder:\n",
                 f"echo     {_asset_project_dir}\n",
                 _uncompress_cmd,
-                f'{_rm}{_tmp_repo_dwnld_path}{_noecho}\n'
+                f'{_rm}{_tmp_repo_dwnld_path}{_noecho}\n',
+                f'chown {USER} {DESOTA_MODELS_PATH}\n' if USER_SYS == "lin" else ""
             ]
             _steps = l_download_weigth if _steps == None else _steps+l_download_weigth
             _tmp_file_lines.append(f'echo {_steps} > {progress}\n')
@@ -915,7 +917,7 @@ class SGui():
     def get_user_config(self) -> dict:
         if not os.path.isfile(USER_CONFIG_PATH):
             _template_user_conf={
-                "user_api": None,
+                "api_key": None,
                 "models":None,
                 "system": USER_SYS
             }
@@ -986,12 +988,12 @@ class SGui():
         if key == "models":
             # Get allready installed models
             try:
-                _old_models = dict(user_config["models"]) if user_config["models"] else []
+                _old_models = dict(user_config["models"]) if user_config["models"] else {}
             except:
                 _old_models= {}
             _res_models = _old_models.copy()
             # Uninstall FLAG
-            if _old_models and uninstall:    
+            if _old_models or uninstall:    
                 if isinstance(value, str):
                     _rem_models = [value]
                 else:
@@ -1645,7 +1647,7 @@ class SGui():
 
         if not _models_2_upgrade:
             return "-ignore-"
-        _user_api_key = self.user_config["api_key"]
+        _user_api_key = self.get_user_config()["api_key"]
         if not _user_api_key:
             _no_api_msg = psg.popup_ok(f"No API Key was found!\nYou will be redirected to the API tab", title="", icon=self.icon)
             self.move_2_tab(self.tab_keys[2])
