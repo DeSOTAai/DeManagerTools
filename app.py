@@ -1236,7 +1236,6 @@ class SGui():
         return visibility
 
     def get_install_tools(self, get_layout=True, search_filter=None):
-        # Implementing: Evolute from self.just_started into get_layout for init and the rest is only get visibility of elements
         '''Available Uninstalled Tools'''
         _install_tools = []
         _req_services_header = False
@@ -1257,7 +1256,7 @@ class SGui():
                 _desc = self.latest_services_config["services_params"][_desota_serv]["short_description"]
                 _source = self.latest_services_config["services_params"][_desota_serv]["source_code"]
                 
-                if not search_filter or (search_filter.lower() in _desota_serv.lower() or search_filter.lower() in _desc):
+                if not search_filter or (search_filter.lower() in _desota_serv.lower() or search_filter.lower() in _desc.lower()):
                     if get_layout:
                         _at_serv_event = self.create_elem_key(f"SERVICE {_desota_serv}", ("at", count))
                         _at_req_event = self.create_elem_key(f'WEBREQUEST {_source}', ("at", count))
@@ -1314,7 +1313,6 @@ class SGui():
             return True if _req_services_header else False
         return _install_tools
     def get_upgrade_models(self, get_layout=True, search_filter=None):
-        #TODO: Evolute from self.just_started inoy get_layout for init and the rest is only get visibility of elements
         '''Upgradable Models / Tools'''
         _upgrade_models = []
         _upgrade_models_header = False
@@ -1335,7 +1333,7 @@ class SGui():
             if self.user_config['models'] and _serv in self.user_config['models'] and self.user_config['models'][_serv] != _latest_model_version:
                 _desc = self.latest_services_config["services_params"][_serv]["short_description"]
                 _source = self.latest_services_config["services_params"][_serv]["source_code"]
-                if not search_filter or (search_filter.lower() in _serv.lower() or search_filter.lower() in _desc):
+                if not search_filter or (search_filter.lower() in _serv.lower() or search_filter.lower() in _desc.lower()):
                     if get_layout:
                         _up_upg_event = self.create_elem_key(f"SERVICE {_serv}", ("up", count))
                         _up_req_event = self.create_elem_key(f'WEBREQUEST {_source}', ("up", count))
@@ -1392,7 +1390,6 @@ class SGui():
             return True if _upgrade_models_header else False
         return _upgrade_models
     def get_install_models(self, get_layout=True, search_filter=None):
-        #TODO: Evolute from self.just_started into get_layout for init and the rest is only get visibility of elements
         '''Available Uninstalled Models'''
         _install_models = []
         _available_models_header = False
@@ -1414,7 +1411,7 @@ class SGui():
             _desc = self.latest_services_config["services_params"][_k]["short_description"]
             _source = self.latest_services_config["services_params"][_k]["source_code"]
 
-            if not search_filter or (search_filter.lower() in _k.lower() or search_filter.lower() in _desc):
+            if not search_filter or (search_filter.lower() in _k.lower() or search_filter.lower() in _desc.lower()):
                 if get_layout:
                     _am_serv_event = self.create_elem_key(f"SERVICE {_k}", ("am", count))
                     _am_req_event = self.create_elem_key(f'WEBREQUEST {_source}', ("am", count))
