@@ -106,6 +106,7 @@ class SGui():
         self.started_manual_services_file = os.path.join(TMP_PATH, "manual_services_started.txt")
         self.exist_log = os.path.isfile(LOG_PATH)
         self.exist_api_key_at_init = False
+        self.searching_delogger = False
 
         if USER_SYS == 'win':
             self.icon = os.path.join(APP_PATH, "Assets", "icon.ico")
@@ -355,6 +356,11 @@ class SGui():
         if not self.exist_derunner:
             return
         
+        if self.searching_delogger:
+            return
+        else:
+            self.searching_delogger = True
+        
         _gui_logger = self.root['derunner_log']
 
         if not os.path.isfile(LOG_PATH):
@@ -380,7 +386,7 @@ class SGui():
             self.derunner_memory = last_lines
             _gui_logger.Update(last_lines)
             _gui_logger.set_vscroll_position(1)
-        
+        self.searching_delogger = False
     def upddate_delogger(self, new_lines=None):
         if new_lines != None:
             if isinstance(new_lines, str):
@@ -1658,7 +1664,7 @@ class SGui():
         for m in _models_2_upgrade:
             status = self.check_model_running(m)
             print(m, "status", status)
-            if self.check_model_running(m):
+            if status:
                 _not_running_models.remove(m)
                 if len(_not_running_models) > 0:
                     _yn_res = psg.popup_yes_no(f"Currently the model [{m}] is cocking something...\nDo you want to proceed with the remaining models?\n{json.dumps(_not_running_models)}", title="", icon=self.icon)
@@ -1667,11 +1673,6 @@ class SGui():
                 else:
                     _ok_res = psg.popup_ok(f"This models is currently cocking something...\nPlease Try Later", title="", icon=self.icon)
                     return "-ignore-"
-        _models_2_upgrade = _not_running_models
-        running_models = [self.check_model_running(m) for m in _models_2_upgrade]
-        if False in running_models:
-            _ok_res = psg.popup_ok(f"One of the requested models is currently completing a task\nPlease Try Later", title="", icon=self.icon)
-            return "-ignore-"    
         _ok_res = psg.popup_ok(f"You will install the following models: {json.dumps(_models_2_upgrade, indent=4)}\nPress Ok to proceed", title="", icon=self.icon)
         if not _ok_res:
             return "-ignore-"
@@ -1997,7 +1998,7 @@ class SGui():
         for m in _models_2_uninstall:
             status = self.check_model_running(m)
             print(m, "status", status)
-            if self.check_model_running(m):
+            if status:
                 _not_running_models.remove(m)
                 if len(_not_running_models) > 0:
                     _yn_res = psg.popup_yes_no(f"Currently the model [{m}] is cocking something...\nDo you want to proceed with the remaining models?\n{json.dumps(_not_running_models)}", title="", icon=self.icon)
@@ -2032,7 +2033,7 @@ class SGui():
             with open(tmp_uninstall_script, "w") as fw:
                 fw.writelines([
                     "#!/bin/bash\n",
-                    f'gnome-terminal --wait -- bash -c "pkexec /bin/bash {_uninstall_script_path}" || echo "Super User do uninstalls!" && pkexec /bin/bash {_uninstall_script_path}\n',
+                    f'gnome-terminal --wait -- bash -c "pkexec /bin/bash {_uninstall_script_path}" || pkexec /bin/bash {_uninstall_script_path}\n',
                     f"exit 0\n"
                 ])
             _child_proc = subprocess.Popen(['bash', tmp_uninstall_script])
