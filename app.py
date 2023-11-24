@@ -355,22 +355,22 @@ class SGui():
             os.remove(self.started_manual_services_file)
         
         return "-done-"
-    
-    def upddate_derunner_log(self):
+
+    def get_delogger(self):
         if not self.exist_derunner:
             return
         
         _gui_logger = self.root['derunner_log']
 
-        _derunner_log_path = os.path.join(DESOTA_ROOT_PATH, "demanager.log")
-        if not os.path.isfile(_derunner_log_path):
-            _gui_logger.Update(f"DeRunner service.log not found!\nPath:{_derunner_log_path}")
+        if not os.path.isfile(LOG_PATH):
+            _gui_logger.Update(f"Desota demanager.log is empty!\nPath:{LOG_PATH}")
             return
         
         _num_lines = 100
 
         last_lines = []
-        with open(_derunner_log_path, 'rb') as f:
+        
+        with open(LOG_PATH, 'rb') as f:
             try:  # catch OSError in case of a one line file 
                 f.seek(-2, os.SEEK_END)
                 while _num_lines > 1:
@@ -380,10 +380,20 @@ class SGui():
             except OSError:
                 f.seek(0)
             last_lines = f.read().decode()
+
         if self.derunner_memory != last_lines:
             self.derunner_memory = last_lines
             _gui_logger.Update(last_lines)
             _gui_logger.set_vscroll_position(1)
+        
+    def upddate_delogger(self, new_lines=None):
+        if new_lines != None:
+            if isinstance(new_lines, str):
+                new_lines = [new_lines + "\n"]
+            with open(LOG_PATH, 'a') as fa:
+                fa.writelines(new_lines)
+        delogger_thread = threading.Thread(target=self.get_delogger)
+        delogger_thread.start()
 
     def fresh_window_size(self):
         if (self.exist_tdash or self.exist_mdash) and self.exist_log and self.derunner_fold:
@@ -1153,7 +1163,7 @@ class SGui():
                 self.exist_derunner = True
                 return [
                     [psg.Input("Search", key='searchDash', expand_x=True)],
-                    [psg.Text('DeSOTA  Log ▲', tooltip="live log of models requests", key="derunner_log_head", enable_events=True, font=self.title_f)],
+                    [psg.Text('DeSOTA  Logs ▲', tooltip="live log of models requests", key="derunner_log_head", enable_events=True, font=self.title_f)],
                     [psg.Multiline(size=(None, 8), reroute_cprint=True, key='derunner_log', expand_x=True, expand_y=False, visible=False), psg.Text('', key="derunner_log_clear", visible=True)],
                     [psg.Column(_dashboard_layout, size=(800, 238), scrollable=True, key="_SCROLL_COL1_")],
                     [
@@ -2114,7 +2124,7 @@ class SGui():
         _size_x, _size_y = self.root.size
         if self.derunner_fold:
             self.derunner_fold = False
-            _head.Update('DeSOTA  Log ▼')
+            _head.Update('DeSOTA  Logs ▼')
             _body.Update(visible=True)
             _clear.Update(visible=False)
 
@@ -2122,7 +2132,7 @@ class SGui():
             self.column_set_size(self.root["_SCROLL_COL1_"], (_size_x-65, _size_y-317))
         else:
             self.derunner_fold = True
-            _head.Update('DeSOTA  Log ▲')
+            _head.Update('DeSOTA  Logs ▲')
             _body.Update(visible=False)
             _clear.Update(visible=True)
             # RESIZE
@@ -2146,7 +2156,7 @@ class SGui():
             self.sgui_exit()
             return "-close-"
         elif _event == psg.TIMEOUT_KEY:
-            self.upddate_derunner_log()
+            self.upddate_delogger()
             return "-timeout-"
         
         # HANDLE TAB CHANGE
