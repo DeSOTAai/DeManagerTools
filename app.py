@@ -1,6 +1,6 @@
 import PySimpleGUI as psg
 import os, sys, time, requests, json
-import subprocess, webbrowser
+import subprocess, webbrowser, threading
 
 DEBUG = True
 
@@ -215,7 +215,7 @@ class SGui():
         self.root_size, self.root.size = self.root.size, self.root.size
         self.root.bind('<Configure>',"windowConfigure")
         #Search Dashboard
-        if self.exist_dash:
+        if self.exist_tdash or self.exist_mdash:
             self.root['searchDash'].Widget.config(takefocus=0)
             self.mem_dash_search = None
 
@@ -386,7 +386,7 @@ class SGui():
             _gui_logger.set_vscroll_position(1)
 
     def fresh_window_size(self):
-        if self.exist_dash and self.exist_log and self.derunner_fold:
+        if (self.exist_tdash or self.exist_mdash) and self.exist_log and self.derunner_fold:
             _size_x, _size_y = self.root.size
             self.column_set_size(self.root["_SCROLL_COL1_"], (_size_x-65, _size_y-205))
 
@@ -1084,18 +1084,18 @@ class SGui():
     def construct_monitor_models_tab(self):
         # No Models Available
         if not self.user_config['models']:
-            self.exist_dash = False
+            self.exist_tdash, self.exist_mdash = False, False
             return [
                 [psg.Text('No Model Installed', font=self.header_f)],
                 [psg.Button('Install Models', key=f"TABMOVE {self.tab_keys[1]}")]
             ]
         # Models Available
         else: # Inspited in https://stackoverflow.com/a/65778327 
-            self.exist_dash = True
             _dashboard_layout = []
             # Tools Table
             _tools_data, _tools = self.get_tools_data()
             if _tools_data:
+                self.exist_tdash = True
                 _tool_table_header = ["Tool", "Service Status", "Description"]
                 _dashboard_layout.append([psg.Text('Installed Tools', font=self.header_f)])
                 _dashboard_layout.append([psg.Table(
@@ -1113,11 +1113,13 @@ class SGui():
                     hide_vertical_scroll=True,
                     key='tool_table'
                 )])
-                # _dashboard_layout.append([psg.Graph()]) #TODO
-            
+            else:
+                self.exist_tdash = False
+
             # Models Table
             _models_data, _models = self.get_models_data()
             if _models_data:
+                self.exist_mdash = True
                 _model_table_header = ["AI Model", "Service Status", "Description"]
                 _dashboard_layout.append([psg.Text('Installed AI Models', font=self.header_f, pad=(0, (20,0)) if _models_data else (0, (0,0)))])
                 _dashboard_layout.append([psg.Table(
@@ -1135,8 +1137,8 @@ class SGui():
                     hide_vertical_scroll=True,
                     key='model_table'
                 )])
-                # _dashboard_layout.append([psg.Graph()]) #TODO
-
+            else:
+                self.exist_mdash = False
             self.set_installed_services(user_tools=_tools, user_models=_models)
 
             # Handle Stop Manual Services
@@ -2058,19 +2060,24 @@ class SGui():
         self.tools_click = False
         self.models_selected = []
         self.models_click = False
-        if _search_filter.strip() != "":
-            self.mem_dash_search = _search_filter.strip()
-            _tools_data, _tools = self.get_tools_data(search_filter=_search_filter)
-            _models_data, _models = self.get_models_data(search_filter=_search_filter)
-        else:
-            self.mem_dash_search = "Search"
-            _tools_data, _tools = self.get_tools_data()
-            _models_data, _models = self.get_models_data()
-
-        self.root['tool_table'].update(values=_tools_data)
-        self.root['model_table'].update(values=_models_data)
-
-        self.set_installed_services(user_tools=_tools, user_models=_models)
+        if self.exist_tdash:
+            if _search_filter.strip() != "":
+                self.mem_dash_search = _search_filter.strip()
+                _tools_data, _tools = self.get_tools_data(search_filter=_search_filter)
+            else:
+                self.mem_dash_search = "Search"
+                _tools_data, _tools = self.get_tools_data()
+            self.root['tool_table'].update(values=_tools_data)
+            self.set_installed_services(user_tools=_tools)
+        if self.exist_mdash:
+            if _search_filter.strip() != "":
+                self.mem_dash_search = _search_filter.strip()
+                _models_data, _models = self.get_models_data(search_filter=_search_filter)
+            else:
+                self.mem_dash_search = "Search"
+                _models_data, _models = self.get_models_data()
+            self.root['model_table'].update(values=_models_data)
+            self.set_installed_services(user_models=_models)
 
         return "-done-"
     
