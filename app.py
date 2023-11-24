@@ -2,7 +2,7 @@ import PySimpleGUI as psg
 import os, sys, time, requests, json
 import subprocess, webbrowser, threading
 
-DEBUG = True
+DEBUG = False
 
 DESOTA_HOST = "https://desota.net"
 DESOTA_API_URL = DESOTA_HOST + "/assistant/api.php"
@@ -27,7 +27,9 @@ EVENT_TO_METHOD = {
     "searchInstall_FocusIn": "focus_in_search_install",
     "searchInstall_FocusOut": "focus_out_search_install",
     "derunner_log_head": "un_fold_derunner_log",
-    "setAPIkey": "set_user_api_key"
+    "setAPIkey": "set_user_api_key",
+    "copyAPIkey": "copy_api_key",
+    "pasteAPIkey": "paste_api_key"
 }
 
 if getattr(sys, "frozen", False):
@@ -91,7 +93,6 @@ if USER_SYS=="win":
 elif USER_SYS=="lin":
     EXECS_PATH = os.path.join(APP_PATH, "executables", "Linux")
     USER=str(USER_PATH).split("/")[-1]
-print("USER:", USER)
 
 # Construct APP with PySimpleGui
 class SGui():
@@ -417,7 +418,7 @@ class SGui():
         return (curr_user_config["running"][curr_api_key] == model)
 
     #   > Create Assets Script
-    def create_install_script(self, model_ids, manage_configs_flag_path, asset_sucess_path, progress=None) -> str:
+    def create_install_script(self, model_ids, manage_configs_flag_path, asset_success_path, progress=None) -> str:
         '''
         Create model install|upgrade script
 
@@ -561,7 +562,7 @@ class SGui():
                 f"{_log_prefix}Installing '{_model}'... >>{LOG_PATH}\n",
                 f'{_start_cmd}{_asset_setup} {" ".join(_asset_sys_params["setup_args"] if "setup_args" in _asset_sys_params and _asset_sys_params["setup_args"] else [])}\n'
             ]
-            _tmp_file_lines.append(f'echo {_model} >> {asset_sucess_path}\n')
+            _tmp_file_lines.append(f'echo {_model} >> {asset_success_path}\n')
             _steps = l_setup_weigth if _steps == None else _steps+l_setup_weigth
             _tmp_file_lines.append(f'echo {_steps} > {progress}\n')
 
@@ -582,8 +583,8 @@ class SGui():
 
         
         #     Update user.config model && services.config model
-        #     Everything relies on what is writen into `asset_sucess_path`
-        open(asset_sucess_path, "w").close # Clean
+        #     Everything relies on what is writen into `asset_success_path`
+        open(asset_success_path, "w").close # Clean
         _tmp_file_lines += _manage_configs_loop
         
         # Force DeRunner Restart
@@ -1196,7 +1197,7 @@ class SGui():
                 self.exist_derunner = True
                 return [
                     [psg.Input("Search", key='searchDash', expand_x=True)],
-                    [psg.Text('DeSOTA  Logs ▲', tooltip="live log of models requests", key="derunner_log_head", enable_events=True, font=self.title_f)],
+                    [psg.Text('DeSOTA  Logs ▲', key="derunner_log_head", enable_events=True, font=self.title_f)],
                     [psg.Multiline(size=(None, 8), reroute_cprint=True, key='derunner_log', expand_x=True, expand_y=False, visible=False), psg.Text('', key="derunner_log_clear", visible=True)],
                     [psg.Column(_dashboard_layout, size=(800, 238), scrollable=True, key="_SCROLL_COL1_")],
                     [
@@ -1552,7 +1553,6 @@ class SGui():
             if get_layout:
                 _install_layout += _install_models
         
-        # if DEBUG:
         if get_layout:
             return _install_layout
     def construct_install_tab(self):
@@ -1582,41 +1582,33 @@ class SGui():
         _user_api_key = self.user_config['api_key']
         open_desota_api = self.create_elem_key(f'WEBREQUEST {DESOTA_HOST}/index.php?controller=api', ("api", 0))
         if not _user_api_key:
-            _strip_models = [ m.strip() for m, v in self.user_config['models'].items() if m not in self.tools_services]
-            _str_models = ",".join(_strip_models)
-            return [
-                [psg.Text('Insert your API Key', font=self.header_f, key="headerApiKey")],  # Title
-                [psg.Input('',key='inpApiKey', expand_x=True), psg.Button('Set', key="setAPIkey")],
-                [
-                    psg.Text('Consult DeSOTA API Key Dashboard', font=self.title_f), 
-                    psg.Text(
-                        "here", 
-                        tooltip='Login DeSOTA to acess this page', 
-                        enable_events=True, 
-                        font=self.title_f, 
-                        text_color="purple", 
-                        key=open_desota_api
-                    )
-                ]
-            ]
+            tab_header = 'Insert your API Key'
+            go_name = 'Save'
         # API INFO
         else:
+            tab_header = 'Current API Key'
+            go_name = 'Change'
             self.exist_api_key_at_init = True
-            return [
-                [psg.Text('Current API Key', font=self.header_f, key="headerApiKey")],
-                [psg.Input(_user_api_key, key='inpApiKey', expand_x=True), psg.Button('Change', key="setAPIkey")],
-                [
-                    psg.Text('Consult DeSOTA API Key Dashboard', font=self.title_f), 
-                    psg.Text(
-                        "here", 
-                        tooltip='Login DeSOTA to acess this page', 
-                        enable_events=True, 
-                        font=self.title_f, 
-                        text_color="purple", 
-                        key=open_desota_api
-                    )
-                ]
+        return [
+            [psg.Text(tab_header, font=self.header_f, key="headerApiKey")],
+            [psg.Input(_user_api_key, key='inpApiKey', expand_x=True)],
+            [
+                psg.Button('Copy', tooltip='Copy API Key into clipboard', key="copyAPIkey"),
+                psg.Button('Paste', tooltip='Paste API Key from clipboard', button_color=("White", "Black"), key="pasteAPIkey"),
+                psg.Button(go_name, button_color=("White", "Green"), key="setAPIkey")
+            ],
+            [
+                psg.Text('Consult DeSOTA API Key Dashboard', font=self.title_f), 
+                psg.Text(
+                    "here", 
+                    tooltip='Login DeSOTA to acess this page', 
+                    enable_events=True, 
+                    font=self.title_f, 
+                    text_color="purple", 
+                    key=open_desota_api
+                )
             ]
+        ]
 
 
     # Methods
@@ -1650,7 +1642,6 @@ class SGui():
             if isinstance(_k, str) and "UPGRADE" in _k and _v:
                 _models_2_upgrade.append(_k.split(' ')[1].strip())
         _models_2_upgrade += _models_2_install
-        print(f" [ DEBUG ] -> Models to install = {_models_2_upgrade} ")
 
         if not _models_2_upgrade:
             return "-ignore-"
@@ -1679,8 +1670,8 @@ class SGui():
         
         _install_prog_file = os.path.join(TMP_PATH, "install_progress.txt")
         _wait_path=os.path.join(TMP_PATH, f"{_time}install_waiter.txt")
-        _sucess_path=os.path.join(TMP_PATH, f"{_time}install_result.txt")
-        _install_script_path, _install_steps = self.create_install_script(_models_2_upgrade, _wait_path, _sucess_path, progress=_install_prog_file)
+        _success_path=os.path.join(TMP_PATH, f"{_time}install_result.txt")
+        _install_script_path, _install_steps = self.create_install_script(_models_2_upgrade, _wait_path, _success_path, progress=_install_prog_file)
         if not os.path.isfile(_install_script_path):
             return "-ignore-"
 
@@ -1724,7 +1715,7 @@ class SGui():
                 with open(_wait_path, "r") as fr:
                     _wait_state_read = fr.read().replace("\n", "").strip()
                 if _wait_state_read == "0":
-                    with open(_sucess_path, "r") as fr:
+                    with open(_success_path, "r") as fr:
                         _install_res = fr.read().splitlines()
                     if _install_res:
                         # Create dict with model, version pairs
@@ -1751,7 +1742,7 @@ class SGui():
                             fw.write("1")
 
             if _child_proc.poll() == 0:
-                for _file in [_install_prog_file, _wait_path, _sucess_path, tmp_install_script]:
+                for _file in [_install_prog_file, _wait_path, _success_path, tmp_install_script]:
                     if not _file:
                         continue
                     if os.path.isfile(_file):
@@ -2241,11 +2232,19 @@ class SGui():
         return "-done-"
 
     # - Set API KEY
+    def copy_api_key(self, values):
+        _input_api_key = values["inpApiKey"]
+        self.root.TKroot.clipboard_clear()
+        self.root.TKroot.clipboard_append(_input_api_key)
+        return "-done-"
+    def paste_api_key(self, values):
+        _clipboard_content = self.root.TKroot.clipboard_get()
+        self.root["inpApiKey"].update(_clipboard_content)
     def set_user_api_key(self, values):
         _input_api_key = values["inpApiKey"]
         if not _input_api_key:
             _ok_res = psg.popup_ok(
-                "Let me see...\n             Still searching...\n                         Nothing here\nNothing here also\n\n\nPlease Insert not empty API Key", 
+                "Let me see...\n             Still searching...\n\n                         Nothing here\nNothing here also\n\n\nPlease Insert not empty API Key", 
                 title="", 
                 icon=self.icon
             )
@@ -2255,7 +2254,7 @@ class SGui():
         if not self.exist_api_key_at_init:
             self.root["headerApiKey"].Update('Current API Key')
         _app_upgrade = psg.popup_ok(
-                f"API Key has been saved in your configurations!\nMake sure the API Key comes from DeSOTA\nAPI Key:{_input_api_key}",
+                "API Key has been successfully saved",
                 title="",
                 icon = self.icon,
             )
