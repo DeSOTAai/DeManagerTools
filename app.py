@@ -403,6 +403,13 @@ class SGui():
             os.system(f"chown -R {USER} {path}")
         return
 
+    def check_model_running(self, model):
+        curr_user_config = self.get_user_config()
+        curr_api_key = curr_user_config["api_key"]
+        if not "running" in curr_user_config or not curr_api_key in curr_user_config["running"]:
+            return False
+        return (curr_user_config["running"][curr_api_key] == model)
+
     #   > Create Assets Script
     def create_install_script(self, model_ids, manage_configs_flag_path, asset_sucess_path, progress=None) -> str:
         '''
@@ -1646,6 +1653,25 @@ class SGui():
             _no_api_msg = psg.popup_ok(f"No API Key was found!\nYou will be redirected to the API tab", title="", icon=self.icon)
             self.move_2_tab(self.tab_keys[2])
             return "-ignore-"
+        
+        _not_running_models = _models_2_upgrade
+        for m in _models_2_upgrade:
+            status = self.check_model_running(m)
+            print(m, "status", status)
+            if self.check_model_running(m):
+                _not_running_models.remove(m)
+                if len(_not_running_models) > 0:
+                    _yn_res = psg.popup_yes_no(f"Currently the model [{m}] is cocking something...\nDo you want to proceed with the remaining models?\n{json.dumps(_not_running_models)}", title="", icon=self.icon)
+                    if not _yn_res == "Yes":
+                        return "-ignore-"
+                else:
+                    _ok_res = psg.popup_ok(f"This models is currently cocking something...\nPlease Try Later", title="", icon=self.icon)
+                    return "-ignore-"
+        _models_2_upgrade = _not_running_models
+        running_models = [self.check_model_running(m) for m in _models_2_upgrade]
+        if False in running_models:
+            _ok_res = psg.popup_ok(f"One of the requested models is currently completing a task\nPlease Try Later", title="", icon=self.icon)
+            return "-ignore-"    
         _ok_res = psg.popup_ok(f"You will install the following models: {json.dumps(_models_2_upgrade, indent=4)}\nPress Ok to proceed", title="", icon=self.icon)
         if not _ok_res:
             return "-ignore-"
@@ -1965,6 +1991,22 @@ class SGui():
 
         if not _models_2_uninstall:
             return "-ignore-"
+        
+        _not_running_models = _models_2_uninstall
+        print(_not_running_models)
+        for m in _models_2_uninstall:
+            status = self.check_model_running(m)
+            print(m, "status", status)
+            if self.check_model_running(m):
+                _not_running_models.remove(m)
+                if len(_not_running_models) > 0:
+                    _yn_res = psg.popup_yes_no(f"Currently the model [{m}] is cocking something...\nDo you want to proceed with the remaining models?\n{json.dumps(_not_running_models)}", title="", icon=self.icon)
+                    if not _yn_res == "Yes":
+                        return "-ignore-"
+                else:
+                    _ok_res = psg.popup_ok(f"This models is currently cocking something...\nPlease Try Later", title="", icon=self.icon)
+                    return "-ignore-"
+        _models_2_uninstall = _not_running_models
         
         _str_serv = psg.popup_yes_no(
             f"Confirm you want to erase the following models: {json.dumps(_models_2_uninstall, indent=4)}",  
