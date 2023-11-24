@@ -4,12 +4,8 @@ import subprocess, webbrowser, threading
 
 DEBUG = True
 
-# DEPRECATED:
-#
-# DESOTA_TOOLS_SERVICES = {    # Desc -> Service: Checkbox Disabled = REQUIRED
-#     "desotaai/derunner": True,
-#     "franciscomvargas/deurlcruncher": False
-# }
+DESOTA_HOST = "https://desota.net"
+DESOTA_API_URL = DESOTA_HOST + "/assistant/api.php"
 
 EVENT_TO_METHOD = {
     "TABMOVE": "move_2_tab",
@@ -30,7 +26,8 @@ EVENT_TO_METHOD = {
     "searchInstall_Enter": "search_install",
     "searchInstall_FocusIn": "focus_in_search_install",
     "searchInstall_FocusOut": "focus_out_search_install",
-    "derunner_log_head": "un_fold_derunner_log"
+    "derunner_log_head": "un_fold_derunner_log",
+    "setAPIkey": "set_user_api_key"
 }
 
 if getattr(sys, "frozen", False):
@@ -108,6 +105,7 @@ class SGui():
         self.current_theme = self.get_user_theme()
         self.started_manual_services_file = os.path.join(TMP_PATH, "manual_services_started.txt")
         self.exist_log = os.path.isfile(LOG_PATH)
+        self.exist_api_key_at_init = False
 
         if USER_SYS == 'win':
             self.icon = os.path.join(APP_PATH, "Assets", "icon.ico")
@@ -138,10 +136,6 @@ class SGui():
         self.bold_f = ("Helvetica", 10, "bold")
         self.default_f = ("Helvetica", 10)
         # self.default_f = psg.DEFAULT_FONT
-
-        
-        #Define APP Just Started (False after check APP Update)
-        self.just_started = True
 
         #define invisible install elements
         self.created_elems = {}
@@ -1097,9 +1091,9 @@ class SGui():
         _models_data = []
         _models = []
         for _k, _v in self.user_config['models'].items():
-            if _k in self.tools_services:
-                continue
             _model_params = self.services_config["services_params"][_k]
+            if _k in self.tools_services or _model_params["submodel"]:
+                continue
             _model_sys_params = _model_params[USER_SYS]
             _model_desc = _model_params["short_description"]
             _model_status_path = os.path.join(USER_PATH, _model_sys_params["project_dir"], _model_sys_params["execs_path"], _model_sys_params["status"]) if "status" in _model_sys_params and _model_sys_params["status"] else None
@@ -1571,30 +1565,44 @@ class SGui():
 
     # TAB 3 - DeSOTA API Key
     def construct_api_tab(self):
-        # No Models Installed
-        if not self.user_config['models']:
-            return [
-                [psg.Text('No Model Installed', font=self.header_f)],
-                [psg.Button('Install Models', key=f"TABMOVE0 {self.tab_keys[1]}")]
-            ]
-        # TODO . Discuss w/ Kris what about if people have models installed but need key authenticato for new models...
-        # Models Installed
-        else:
+        # No API KEY ASSOCIATED
+        _user_api_key = self.user_config['api_key']
+        open_desota_api = self.create_elem_key(f'WEBREQUEST {DESOTA_HOST}/index.php?controller=api', ("api", 0))
+        if not _user_api_key:
             _strip_models = [ m.strip() for m, v in self.user_config['models'].items() if m not in self.tools_services]
             _str_models = ",".join(_strip_models)
-
-            _req1_event = self.create_elem_key('WEBREQUEST http://129.152.27.36/index.php', ("api", 0))
-            _req2_event = self.create_elem_key('WEBREQUEST http://129.152.27.36/assistant/api.php', ("api", 0))
-            _req3_event = self.create_elem_key(f'WEBREQUEST http://129.152.27.36/assistant/api.php?models_list={_str_models}', ("api", 0))
-            
-
             return [
-                [psg.Text('Create your API Key', font=self.header_f)],  # Title
-                [psg.Text('1. Log In DeSOTA ', font=self.default_f), psg.Text("here", tooltip='', enable_events=True, font=self.default_f, text_color="blue", key=_req1_event)],    # Log In DeSOTA
-                [psg.Text('2. Confirm you are logged in DeOTA API ', font=self.default_f), psg.Text("here", tooltip='', enable_events=True, font=self.default_f, text_color="blue", key=_req2_event)],    # Confirm Log In DeSOTA
-                [psg.Text('3. Get your DeSOTA API Key ', font=self.default_f), psg.Text("here", tooltip='', enable_events=True, font=self.default_f, text_color="blue", key=_req3_event)],    # SET API Key
-                [psg.Text('4. Insert DeSOTA API Key', font=self.default_f),psg.Input('',key='inpKey')],
-                [psg.Button('Set API Key', key="setAPIkey")]
+                [psg.Text('Insert your API Key', font=self.header_f, key="headerApiKey")],  # Title
+                [psg.Input('',key='inpApiKey', expand_x=True), psg.Button('Set', key="setAPIkey")],
+                [
+                    psg.Text('Consult DeSOTA API Key Dashboard', font=self.title_f), 
+                    psg.Text(
+                        "here", 
+                        tooltip='Login DeSOTA to acess this page', 
+                        enable_events=True, 
+                        font=self.title_f, 
+                        text_color="purple", 
+                        key=open_desota_api
+                    )
+                ]
+            ]
+        # API INFO
+        else:
+            self.exist_api_key_at_init = True
+            return [
+                [psg.Text('Current API Key', font=self.header_f, key="headerApiKey")],
+                [psg.Input(_user_api_key, key='inpApiKey', expand_x=True), psg.Button('Change', key="setAPIkey")],
+                [
+                    psg.Text('Consult DeSOTA API Key Dashboard', font=self.title_f), 
+                    psg.Text(
+                        "here", 
+                        tooltip='Login DeSOTA to acess this page', 
+                        enable_events=True, 
+                        font=self.title_f, 
+                        text_color="purple", 
+                        key=open_desota_api
+                    )
+                ]
             ]
 
 
@@ -1633,7 +1641,11 @@ class SGui():
 
         if not _models_2_upgrade:
             return "-ignore-"
-                
+        _user_api_key = self.user_config["api_key"]
+        if not _user_api_key:
+            _no_api_msg = psg.popup_ok(f"No API Key was found!\nYou will be redirected to the API tab", title="", icon=self.icon)
+            self.move_2_tab(self.tab_keys[2])
+            return "-ignore-"
         _ok_res = psg.popup_ok(f"You will install the following models: {json.dumps(_models_2_upgrade, indent=4)}\nPress Ok to proceed", title="", icon=self.icon)
         if not _ok_res:
             return "-ignore-"
@@ -2015,6 +2027,24 @@ class SGui():
             # if _ml_res == "-restart-"
             # if _ml_res == "-ignore-"
 
+        for uninstalled_model in  _models_2_uninstall:  
+            _user_api_key = self.user_config["api_key"]
+            # print("TEST: ", DESOTA_API_URL + f"?api_key={_user_api_key}&models_list={uninstalled_model}&remove_model=1")
+            _rem_service_res = requests.post(
+                url = DESOTA_API_URL,
+                data = {
+                    "api_key": _user_api_key,
+                    "models_list": uninstalled_model,
+                    "remove_model": "1"
+                }
+            )
+            self.upddate_delogger(new_lines=[
+                f"[ API Remove Model ]\n",
+                f"       model: {uninstalled_model}:\n", 
+                f"      result: {_rem_service_res.text}\n",
+                f"    response: {_rem_service_res}\n"
+            ])
+
         # self.set_installed_services()
         _ok_res = psg.popup("Uninstalation Completed!\n\nThe APP need to restart!\nPress Ok to proceed", title="", icon=self.icon)
         if not _ok_res:
@@ -2165,6 +2195,27 @@ class SGui():
             _clear.Update(visible=True)
             # RESIZE
             self.column_set_size(self.root["_SCROLL_COL1_"], (_size_x-65, _size_y-205))
+        return "-done-"
+
+    # - Set API KEY
+    def set_user_api_key(self, values):
+        _input_api_key = values["inpApiKey"]
+        if not _input_api_key:
+            _ok_res = psg.popup_ok(
+                "Let me see...\n             Still searching...\n                         Nothing here\nNothing here also\n\n\nPlease Insert not empty API Key", 
+                title="", 
+                icon=self.icon
+            )
+            return "-ignore-"
+        self.edit_user_configs("api_key", _input_api_key)
+        self.root["inpApiKey"].update(_input_api_key)
+        if not self.exist_api_key_at_init:
+            self.root["headerApiKey"].Update('Current API Key')
+        _app_upgrade = psg.popup_ok(
+                f"API Key has been saved in your configurations!\nMake sure the API Key comes from DeSOTA\nAPI Key:{_input_api_key}",
+                title="",
+                icon = self.icon,
+            )
         return "-done-"
 
 
