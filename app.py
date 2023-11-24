@@ -95,6 +95,7 @@ elif USER_SYS=="lin":
     EXECS_PATH = os.path.join(APP_PATH, "executables", "Linux")
     USER=str(USER_PATH).split("/")[-1]
 print("USER:", USER)
+
 # Construct APP with PySimpleGui
 class SGui():
     # Class INIT
@@ -528,13 +529,12 @@ class SGui():
             elif USER_SYS=="lin":
                 _mkdir="mkdir -p "
                 _download_cmd=f'wget {_asset_repo}/archive/{_asset_commit}.zip -O {_tmp_repo_dwnld_path}{_noecho}\n'
-                _uncompress_cmd=f'apt install libarchive-tools -y && bsdtar -xzvf {_tmp_repo_dwnld_path} -C {_asset_project_dir} --strip-components=1{_noecho}\n'
+                _uncompress_cmd=f'apt install libarchive-tools -y{_noecho} && bsdtar -xzvf {_tmp_repo_dwnld_path} -C {_asset_project_dir} --strip-components=1{_noecho}\n'
             _tmp_file_lines += [
                 "echo Download InFo:\n",
                 f"echo         Model ID: {_model}\n",
                 f"echo     Model Source: {_asset_repo}\n",
                 f"echo     Model Commit: {_asset_commit}\n",
-                f"{_log_prefix}Downlading '{_model}'... >>{LOG_PATH}\n",
                 f"{_mkdir}{_asset_project_dir}{_noecho}\n", # Create Asset Folder
                 _download_cmd,
                 "echo Uncompressing Project to target folder:\n",
@@ -794,7 +794,7 @@ class SGui():
         dmt_exe_dir = os.path.dirname(dmt_exe)
         
         ## DEBUG
-        debub_path=os.path.join(TMP_PATH, f"UPG_DEBUG{_time}.txt")
+        debug_path=os.path.join(TMP_PATH, f"UPG_DEBUG{_time}.txt")
         ## DEBUG
 
         # Read Template
@@ -805,7 +805,7 @@ class SGui():
             "__exe_dir__": dmt_exe_dir,
             "__exe_path__": dmt_exe,
             "__launch_flag__": launch_res_path,
-            "__debug__": debub_path
+            "__debug__": debug_path
         }
         for k, v in _translate_dic.items():
             dmt_launch = dmt_launch.replace(k, v)
@@ -1628,7 +1628,7 @@ class SGui():
             with open(tmp_install_script, "w") as fw:
                 fw.writelines([
                     "#!/bin/bash\n",
-                    f'gnome-terminal --wait -- bash -c "pkexec /bin/bash {_install_script_path}"\n',
+                    f'gnome-terminal --wait -- bash -c "pkexec /bin/bash {_install_script_path}" || pkexec /bin/bash {_install_script_path}\n',
                     f"exit 0"
                 ])
             _child_proc = subprocess.Popen(['bash', tmp_install_script])
@@ -1675,6 +1675,7 @@ class SGui():
                         if _install_conf:
                             self.edit_user_configs("models", _install_conf)
                             self.upd_services_params()
+
                     try:
                         with open(_wait_path, "w") as fw:
                             fw.write("1")
@@ -1885,7 +1886,7 @@ class SGui():
                 with open(tmp_cli_script, "w") as fw:
                     fw.writelines([
                         "#!/bin/bash\n",
-                        f'gnome-terminal --wait -- bash -c "{cli_cmd_str}; exec bash"\n',
+                        f'gnome-terminal --wait -- bash -c "{cli_cmd_str}" || /bin/bash {cli_cmd_str}\n',
                         f'rm -- "{tmp_cli_script}" & exit 0'
                     ])
                 _sproc = subprocess.Popen(
@@ -1951,13 +1952,14 @@ class SGui():
             with open(tmp_uninstall_script, "w") as fw:
                 fw.writelines([
                     "#!/bin/bash\n",
-                    f'gnome-terminal --wait -- bash -c "pkexec /bin/bash {_uninstall_script_path}"\n',
+                    f'gnome-terminal --wait -- bash -c "pkexec /bin/bash {_uninstall_script_path}" || echo "Super User do uninstalls!" && pkexec /bin/bash {_uninstall_script_path}\n',
                     f"exit 0\n"
                 ])
             _child_proc = subprocess.Popen(['bash', tmp_uninstall_script])
             
 
         while True:
+            # EDIT CONFIGS
             if os.path.isfile(_wait_path):
                 with open(_wait_path, "r") as fr:
                     _wait_state_read = fr.read().replace("\n", "").strip()
@@ -2230,7 +2232,7 @@ def main():
             with open(tmp_script, "w") as fw:
                 fw.writelines([
                     "#!/bin/bash\n",
-                    f'gnome-terminal --wait -- bash -c "pkexec /bin/bash {_upgrade_sript_path}; exec bash" & \
+                    f'gnome-terminal --wait -- bash -c "pkexec /bin/bash {_upgrade_sript_path}" || pkexec /bin/bash  {_upgrade_sript_path} & \
                     rm -- "{tmp_script}" & \
                     exit 0'
                 ])
@@ -2240,8 +2242,6 @@ def main():
                 exit()
         sgui.sgui_exit()
         return 0
-
-
     
     _tab_selected = False
     _mem_open_tab = sgui.current_tab
