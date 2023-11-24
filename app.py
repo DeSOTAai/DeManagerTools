@@ -967,48 +967,71 @@ class SGui():
     def get_tools_services(self) -> dict:
         _tools_services = {}
         for service, params in self.latest_services_config["services_params"].items():
-            if not params["submodel"] and params["service_type"] == "tool":
+            if not params["submodel"] and (params["service_type"] == "tool" or params["service_type"] == "asset"):
                 _tools_services[service] = params["required"]
         return _tools_services
     
     # Edit User Configs
     def edit_user_configs(self, key, value, uninstall=False):
         user_config = self.get_user_config()
-
         # param "models" consist of the name of the model as key and is version as value
         if key == "models":
             # Get allready installed models
-            _old_models = user_config["models"]
-            # Instatiate result models
-            if _old_models:
-                _res_models = dict(_old_models)
-            else:
-                _res_models = {}
-
+            try:
+                _old_models = dict(user_config["models"]) if user_config["models"] else []
+            except:
+                _old_models= {}
+            _res_models = _old_models.copy()
             # Uninstall FLAG
-            if uninstall:
-                if _res_models:
-                    if isinstance(value, str):
-                        _rem_models = [value]
-                    else:
-                        _rem_models = value
-                    for _model in _rem_models:
-                        if _model in _res_models:
-                            _res_models.pop(_model)
+            if _old_models and uninstall:    
+                if isinstance(value, str):
+                    _rem_models = [value]
+                else:
+                    _rem_models = value
+                for _model in _rem_models:
+                    try:
+                        model_params = self.services_config['services_params'][_model]
+                    except:
+                        model_params = self.latest_services_config['services_params'][_model]
+                    try:
+                        un_models_w_childs = [_model]
+                        # edit user config models
+                        if _model in _old_models:
+                            _res_models.pop(_model) 
+                        _childs = model_params["child_models"] if model_params["child_models"] else []
+                        print("CHILDS FOUND =", _childs)
+                        for c in _childs:
+                            if c in _old_models:
+                                _res_models.pop(c)
+                                un_models_w_childs.append(c)
+                        # edit user config admissions
+                        if "admissions" in user_config and user_config["admissions"]:
+                            _res_admissions = user_config["admissions"].copy()
+                            for un_mo_ch in un_models_w_childs:
+                                for admn_key, admissions in user_config["admissions"].items():
+                                    if un_mo_ch in admissions:
+                                        _res_admissions[admn_key].pop(un_mo_ch)
+                            user_config["admissions"] = _res_admissions
+                    except:
+                        pass
             else:
-                _new_models = value
-                for _model, _version in _new_models.items():
-                    if _model in _res_models:
-                        if _res_models[_model] == _version:
-                            continue
-                        _res_models[_model] = _version
-                        continue
-                    _res_models.update({_model:_version})
-
+                for _model, _version in value.items():
+                    model_params = self.latest_services_config['services_params'][_model]
+                    try:
+                        if _model not in _old_models or _old_models[_model] != _version:
+                                _res_models.update({_model:_version})
+                        _childs = model_params["child_models"] if model_params["child_models"] else []
+                        print("CHILDS FOUND =", _childs)
+                        for c in _childs:
+                            if c not in _old_models:
+                                _res_models.update({c:_version})
+                    except:
+                        pass
             # Update user_config `models`
             user_config[key] = _res_models
         else:
             user_config[key] = value
+
         
         with open(USER_CONFIG_PATH, 'w',) as fw:
             yaml.dump(user_config,fw,sort_keys=False)
@@ -1026,12 +1049,15 @@ class SGui():
         _user_models = self.get_user_config()["models"]
         for model_id, model_v in _user_models.items():
             _last_service_params = self.latest_services_config["services_params"]
-            if _last_service_params[model_id][USER_SYS]["version"] == model_v or model_id not in _res_serv_conf["services_params"]:
-                _res_serv_conf["services_params"][model_id] = _last_service_params[model_id]
-            if "child_models" in _res_serv_conf["services_params"][model_id] and _res_serv_conf["services_params"][model_id]["child_models"]:
-                for child in _res_serv_conf["services_params"][model_id]["child_models"]:
-                    if child in _last_service_params:
-                        _res_serv_conf["services_params"][child] = _last_service_params[child]
+            _model_params = _last_service_params[model_id]
+            if not _model_params["submodel"]:
+                if _model_params[USER_SYS]["version"] == model_v or model_id not in _res_serv_conf["services_params"]:
+                    _res_serv_conf["services_params"][model_id] = _model_params
+            else:
+                _parent_model = _model_params["parent_model"]
+                _parent_params = _last_service_params[_parent_model]
+                if _parent_params[USER_SYS]["version"] == model_v or _parent_model not in _res_serv_conf["services_params"]:
+                    _res_serv_conf["services_params"][model_id] = _last_service_params[model_id]
 
         with open(SERVICES_CONFIG_PATH, 'w',) as fw:
             yaml.dump(_res_serv_conf,fw,sort_keys=False)
@@ -2145,10 +2171,6 @@ class SGui():
     # Get Class Method From Event and Run Method
     def main_loop(self, ignore_event=[], timeout=None):
         try:
-            # Check For APP UPGRADES
-            if self.just_started:
-                self.just_started = False
-                    
             #Read  values entered by user
             _event, _values = self.root.read(timeout=timeout)
         except:
