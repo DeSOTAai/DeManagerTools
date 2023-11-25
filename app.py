@@ -993,47 +993,49 @@ class SGui():
                 _old_models= {}
             _res_models = _old_models.copy()
             # Uninstall FLAG
-            if _old_models or uninstall:    
-                if isinstance(value, str):
-                    _rem_models = [value]
-                else:
-                    _rem_models = value
-                for _model in _rem_models:
-                    try:
-                        model_params = self.services_config['services_params'][_model]
-                    except:
-                        model_params = self.latest_services_config['services_params'][_model]
-                    try:
-                        un_models_w_childs = [_model]
-                        # edit user config models
-                        if _model in _old_models:
-                            _res_models.pop(_model) 
-                        _childs = model_params["child_models"] if model_params["child_models"] else []
-                        print("CHILDS FOUND =", _childs)
-                        for c in _childs:
-                            if c in _old_models:
-                                _res_models.pop(c)
-                                un_models_w_childs.append(c)
-                        # edit user config admissions
-                        if "admissions" in user_config and user_config["admissions"]:
-                            _res_admissions = user_config["admissions"].copy()
-                            for un_mo_ch in un_models_w_childs:
-                                for admn_key, admissions in user_config["admissions"].items():
-                                    if un_mo_ch in admissions:
-                                        _res_admissions[admn_key].pop(un_mo_ch)
-                            user_config["admissions"] = _res_admissions
-                    except:
-                        pass
+            if uninstall:
+                if _old_models: 
+                    if isinstance(value, str):
+                        _rem_models = [value]
+                    else:
+                        _rem_models = value
+                    for _model in _rem_models:
+                        try:
+                            model_params = self.services_config['services_params'][_model]
+                        except:
+                            model_params = self.latest_services_config['services_params'][_model]
+                        try:
+                            un_models_w_childs = [_model]
+                            # edit user config models
+                            if _model in _old_models:
+                                _res_models.pop(_model) 
+                            _childs = model_params["child_models"] if model_params["child_models"] else []
+                            print("CHILDS FOUND =", _childs)
+                            for c in _childs:
+                                if c in _old_models:
+                                    _res_models.pop(c)
+                                    un_models_w_childs.append(c)
+                            # edit user config admissions
+                            if "admissions" in user_config and user_config["admissions"]:
+                                _res_admissions = user_config["admissions"].copy()
+                                for un_mo_ch in un_models_w_childs:
+                                    for admn_key, admissions in user_config["admissions"].items():
+                                        if un_mo_ch in admissions:
+                                            _res_admissions[admn_key].pop(un_mo_ch)
+                                user_config["admissions"] = _res_admissions
+                        except:
+                            pass
             else:
                 for _model, _version in value.items():
                     model_params = self.latest_services_config['services_params'][_model]
                     try:
                         if _model not in _old_models or _old_models[_model] != _version:
-                                _res_models.update({_model:_version})
+                            print(f"user model append: {_model}({_version})" )
+                            _res_models.update({_model:_version})
                         _childs = model_params["child_models"] if model_params["child_models"] else []
-                        print("CHILDS FOUND =", _childs)
                         for c in _childs:
                             if c not in _old_models:
+                                print(f"user model append: {_model}({_version})" )
                                 _res_models.update({c:_version})
                     except:
                         pass
@@ -1719,6 +1721,8 @@ class SGui():
                 if _wait_state_read == "0":
                     with open(_success_path, "r") as fr:
                         _install_res = fr.read().splitlines()
+                    print("NEW USER MODELS:")
+                    time.sleep(0.3)
                     if _install_res:
                         # Create dict with model, version pairs
                         _install_conf= {}
@@ -1727,7 +1731,6 @@ class SGui():
                             # if _model in self.latest_services_config["services_params"]:
                             _new_version = self.latest_services_config["services_params"][_model][USER_SYS]["version"]
                             _install_conf[_model] = _new_version
-                            print("NEW USER MODELS:")
                             print("    Model:", _model)
                             print("  Version:", _new_version)
                         if _install_conf:
