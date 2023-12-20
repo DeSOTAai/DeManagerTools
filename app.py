@@ -843,7 +843,7 @@ class SGui():
                     pass
         if not whoami:
             whoami = {
-                "version": "0.0.3",
+                "version": "0.2.1",
                 "developer":"Francisco Vargas",
                 "github":"https://github.com/desotaai/demanagertools/",
                 "platform":"https://desota.net/"
