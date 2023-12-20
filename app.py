@@ -1083,9 +1083,9 @@ class SGui():
         _tools_data = []
         _tools = []
         for _k, _v in self.user_config['models'].items():
-            if _k not in self.tools_services:
-                continue
             _tool_params = self.services_config["services_params"][_k]
+            if _k not in self.tools_services or _tool_params["submodel"]:
+                continue
             _tool_sys_params = _tool_params[USER_SYS]
             _tool_desc = _tool_params["short_description"]
             _tool_status_path = os.path.join(USER_PATH, _tool_sys_params["project_dir"], _tool_sys_params["execs_path"], _tool_sys_params["status"]) if _tool_sys_params["status"] else None
