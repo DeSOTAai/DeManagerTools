@@ -19,8 +19,6 @@ DeManagerTools consists on a GUI to:
 <details open>
    <summary><h1>Instalation</h1></summary>
 
-## Dedicated Installer
-
 <img src="Assets/readme_files/dmt_installer/dmt_installer.gif" width="380" title="Loading DMT" alt="DMT Installer Teaser"/>
 <br /><br />
 
