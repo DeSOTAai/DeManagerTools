@@ -1,6 +1,6 @@
 # Download Installer Build
 
-[![Install DeManagerTools](https://img.shields.io/static/v1?label=Desota%20-%20Manager%20Tools&message=Windows+Installer&color=blue&logo=windows)](https://github.com/DeSOTAai/DeManagerTools/releases/download/v0.1.0/v0.1.0-win64.zip)
+[![Install DeManagerTools](https://img.shields.io/static/v1?label=Desota%20-%20Manager%20Tools&message=Linux+Installer&color=blue&logo=linux)](https://github.com/DeSOTAai/DeManagerTools/releases/download/v0.1.0/dmt_installer-v0.1.0-win64.zip) [![Version](https://badgen.net/badge/version/v0.1.0/green?icon=github)](https://github.com/DeSOTAai/DeManagerTools/releases/tag/v0.1.0)
 
 # Uncompress Download
 
