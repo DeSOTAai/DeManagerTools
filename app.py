@@ -1083,6 +1083,10 @@ class SGui():
         _tools_data = []
         _tools = []
         for _k, _v in self.user_config['models'].items():
+            try: # Confirm Model has passed DeRunner BuiltIn Test...
+                assert self.services_config["services_params"][_k]
+            except:
+                continue
             _tool_params = self.services_config["services_params"][_k]
             if _k not in self.tools_services or _tool_params["submodel"]:
                 continue
@@ -1109,6 +1113,10 @@ class SGui():
         _models_data = []
         _models = []
         for _k, _v in self.user_config['models'].items():
+            try: # Confirm Model has passed DeRunner BuiltIn Test...
+                assert self.services_config["services_params"][_k]
+            except:
+                continue
             _model_params = self.services_config["services_params"][_k]
             if _k in self.tools_services or _model_params["submodel"]:
                 continue
@@ -1201,7 +1209,7 @@ class SGui():
                 self.exist_derunner = True
                 return [
                     [psg.Input("Search", key='searchDash', expand_x=True)],
-                    [psg.Text('DeSOTA  Logs ▲', key="derunner_log_head", enable_events=True, font=self.title_f)],
+                    [psg.Text('▸ DeSOTA  Logs', key="derunner_log_head", enable_events=True, font=self.title_f)],
                     [psg.Multiline(size=(None, 8), reroute_cprint=True, key='derunner_log', expand_x=True, expand_y=False, visible=False), psg.Text('', key="derunner_log_clear", visible=True)],
                     [psg.Column(_dashboard_layout, size=(800, 238), scrollable=True, key="_SCROLL_COL1_")],
                     [
@@ -2221,7 +2229,7 @@ class SGui():
         _size_x, _size_y = self.root.size
         if self.derunner_fold:
             self.derunner_fold = False
-            _head.Update('DeSOTA  Logs ▼')
+            _head.Update('▾ DeSOTA  Logs')
             _body.Update(visible=True)
             _clear.Update(visible=False)
 
@@ -2229,7 +2237,7 @@ class SGui():
             self.column_set_size(self.root["_SCROLL_COL1_"], (_size_x-65, _size_y-317))
         else:
             self.derunner_fold = True
-            _head.Update('DeSOTA  Logs ▲')
+            _head.Update('▸ DeSOTA  Logs')
             _body.Update(visible=False)
             _clear.Update(visible=True)
             # RESIZE
