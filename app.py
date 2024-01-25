@@ -1152,30 +1152,6 @@ class SGui():
         # Models Available
         else: # Inspited in https://stackoverflow.com/a/65778327 
             _dashboard_layout = []
-            # Tools Table
-            _assets_data, _assets = self.get_assets_data()
-            if _assets_data:
-                self.exist_tdash = True
-                _tool_table_header = ["Tool", "Service Status", "Description"]
-                _dashboard_layout.append([psg.Text('Installed Assets', font=self.header_f)])
-                _dashboard_layout.append([psg.Table(
-                    values=_assets_data, 
-                    headings=_tool_table_header, 
-                    max_col_width=100,
-                    auto_size_columns=True,
-                    display_row_numbers=False,
-                    justification='center',
-                    num_rows=len(_assets_data),
-                    alternating_row_color='#000020',
-                    select_mode=psg.TABLE_SELECT_MODE_EXTENDED,
-                    enable_events=True,
-                    row_height=25,
-                    hide_vertical_scroll=True,
-                    key='tool_table'
-                )])
-            else:
-                self.exist_tdash = False
-
             # Models Table
             _models_data, _models = self.get_models_data()
             if _models_data:
@@ -1199,6 +1175,31 @@ class SGui():
                 )])
             else:
                 self.exist_mdash = False
+            
+            # Assets Table
+            _assets_data, _assets = self.get_assets_data()
+            if _assets_data:
+                self.exist_tdash = True
+                _tool_table_header = ["Tool", "Service Status", "Description"]
+                _dashboard_layout.append([psg.Text('Installed Assets', font=self.header_f)])
+                _dashboard_layout.append([psg.Table(
+                    values=_assets_data, 
+                    headings=_tool_table_header, 
+                    max_col_width=100,
+                    auto_size_columns=True,
+                    display_row_numbers=False,
+                    justification='center',
+                    num_rows=len(_assets_data),
+                    alternating_row_color='#000020',
+                    select_mode=psg.TABLE_SELECT_MODE_EXTENDED,
+                    enable_events=True,
+                    row_height=25,
+                    hide_vertical_scroll=True,
+                    key='tool_table'
+                )])
+            else:
+                self.exist_tdash = False
+
             self.set_installed_services(user_tools=_assets, user_models=_models)
 
             # Handle Stop Manual Services
@@ -1531,20 +1532,6 @@ class SGui():
         GET LAYOUT ONLY ON CLASS INIT!!! > self.construct_install_tab
         '''
         _install_layout = []
-        # Available Uninstalled Assets
-        _install_assets = self.get_install_assets(get_layout=get_layout, search_filter=search_filter)
-        
-        if _install_assets:
-            if get_layout:
-                _install_layout += _install_assets
-                self.exist_at_sep = True
-                self.at_separator = self.create_elem_key('install_separator_at_up', ("at", 0))
-                _install_layout.append([psg.Text('_'*80, pad=(0, 20), key=self.at_separator, visible=self.set_elem_vis(self.at_separator, ("at", 0), True))])
-            else:
-                self.set_elem_vis(self.at_separator, ("at", 0), True)
-        elif self.exist_at_sep:
-            self.set_elem_vis(self.at_separator, ("at", 0), False)
-
         # Upgradable Models / Tools
         _upgrade_models = self.get_upgrade_models(get_layout=get_layout, search_filter=search_filter)
         if _upgrade_models:
@@ -1558,12 +1545,26 @@ class SGui():
         elif self.exist_up_sep:
             self.set_elem_vis(self.up_separator, ("up", 0), False)
 
-
-        # Available Uninstalled Models
+        # Available Uninstalled Assets
         _install_models = self.get_install_models(get_layout=get_layout, search_filter=search_filter)
         if _install_models:
             if get_layout:
                 _install_layout += _install_models
+                self.exist_am_sep = True
+                self.am_separator = self.create_elem_key('install_separator_am_up', ("am", 0))
+                _install_layout.append([psg.Text('_'*80, pad=(0, 20), key=self.am_separator, visible=self.set_elem_vis(self.am_separator, ("am", 0), True))])
+            else:
+                self.set_elem_vis(self.am_separator, ("am", 0), True)
+        elif self.exist_am_sep:
+            self.set_elem_vis(self.am_separator, ("am", 0), False)
+
+
+
+        # Available Uninstalled Models
+        _install_assets = self.get_install_assets(get_layout=get_layout, search_filter=search_filter)
+        if _install_assets:
+            if get_layout:
+                _install_layout += _install_assets
         
         if get_layout:
             return _install_layout
