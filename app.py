@@ -148,7 +148,7 @@ class SGui():
             "am" : {},
             "api": {}
         }
-        self.exist_at_sep = False
+        self.exist_am_sep = False
         self.exist_up_sep = False
 
         #define user models/tools
@@ -1298,9 +1298,10 @@ class SGui():
 
         return visibility
 
-    def get_install_assets(self, get_layout=True, search_filter=None):
+    def get_install_assets(self, get_layout=True, search_filter=None, get_ids=False):
         '''Available Uninstalled Tools'''
         _install_assets = []
+        _install_assets_ids = []
         _req_services_header = False
         if get_layout:
             _at_header_event = self.create_elem_key('install_header_at', ("at", 0))
@@ -1308,7 +1309,7 @@ class SGui():
             if "0" in self.install_configs["at"] and "install_header_at" in self.install_configs["at"]["0"]:
                 _at_header_event = self.install_configs["at"]["0"]["install_header_at"]["key"]
             else:
-                return _install_assets       
+                return _install_assets
              
         for count, (_desota_serv, _cb_disabled) in enumerate(self.assets_services.items()):
             if not self.user_config['models'] or _desota_serv not in self.user_config['models']:
@@ -1352,6 +1353,8 @@ class SGui():
                             psg.Text(f'Description:', font=self.bold_f, pad=(30, 0), key=_at_desc1_event, visible=self.set_elem_vis(_at_desc1_event, ("at", count), True)), 
                             psg.Text(f'{_desc}', font=self.default_f, key=_at_desc2_event, visible=self.set_elem_vis(_at_desc2_event, ("at", count), True))
                         ])
+                    elif get_ids:
+                        _install_assets_ids.append(_desota_serv)
                     else:
                         self.set_elem_vis([_at_serv_event, _at_req_event, _at_desc1_event, _at_desc2_event], ("at", count), True)
                 else:
@@ -1368,12 +1371,16 @@ class SGui():
             if not get_layout:
                 self.set_elem_vis(_at_header_event, ("at", 0), False)
 
+        if get_ids:
+            return _install_assets_ids
         if not get_layout:
             return True if _req_services_header else False
+        
         return _install_assets
-    def get_upgrade_models(self, get_layout=True, search_filter=None):
+    def get_upgrade_models(self, get_layout=True, search_filter=None, get_ids=False):
         '''Upgradable Models / Tools'''
         _upgrade_models = []
+        _upgrade_models_ids = []
         _upgrade_models_header = False
 
         if get_layout:
@@ -1421,14 +1428,12 @@ class SGui():
                     if get_layout:
                         _upgrade_models.append([
                             psg.Checkbox(_serv, font=self.title_f, key=_up_upg_event, visible=self.set_elem_vis(_up_upg_event, ("up", count), True)),
-                            psg.Button('Source Code', button_color=("Blue","White"), key=_up_req_event, visible=self.set_elem_vis(_up_req_event, ("up", count), True), pad=(5, 0))
-                        ])
-                        _upgrade_models.append(
-                        [
+                            psg.Button('Source Code', button_color=("Blue","White"), key=_up_req_event, visible=self.set_elem_vis(_up_req_event, ("up", count), True), pad=(5, 0)),
                             psg.Text(f'Description:', font=self.bold_f, pad=(30, 0), key=_up_desc1_event, visible=self.set_elem_vis(_up_desc1_event, ("up", count), True)), 
                             psg.Text(f'{_desc}', font=self.default_f, key=_up_desc2_event, visible=self.set_elem_vis(_up_desc2_event, ("up", count), True))
-                        ]
-                    )
+                        ])
+                    elif get_ids:
+                        _upgrade_models_ids.append(_serv)
                     else:
                         self.set_elem_vis([_up_upg_event, _up_req_event, _up_desc1_event, _up_desc2_event], ("up", count), True)
                 else:
@@ -1445,12 +1450,15 @@ class SGui():
             if not get_layout:
                 self.set_elem_vis(_up_header_event, ("up", 0), False)
 
+        if get_ids:
+            return _upgrade_models_ids
         if not get_layout:
             return True if _upgrade_models_header else False
         return _upgrade_models
-    def get_install_models(self, get_layout=True, search_filter=None):
+    def get_install_models(self, get_layout=True, search_filter=None, get_ids=False):
         '''Available Uninstalled Models'''
         _install_models = []
+        _install_models_ids = []
         _available_models_header = False
         
         if get_layout:
@@ -1508,6 +1516,8 @@ class SGui():
                             psg.Text(f'{_desc}', font=self.default_f, key=_am_desc2_event, visible=self.set_elem_vis(_am_desc2_event, ("am", count), True))
                         ]
                     )
+                elif get_ids:
+                    _install_models_ids.append(_k)
                 else:
                     self.set_elem_vis([_am_serv_event, _am_req_event, _am_desc1_event, _am_desc2_event], ("am", count), True)
             else:
@@ -1523,7 +1533,9 @@ class SGui():
             if not get_layout:
                 self.set_elem_vis(_am_header_event, ("am", 0), False)
         
-        if not get_layout:
+        if get_ids:
+            return _install_models_ids
+        if not get_layout and not get_ids:
             return True if _available_models_header else False
         return _install_models
 
@@ -1646,14 +1658,32 @@ class SGui():
     
     # - Install Services
     def install_models(self, values):
+        _time = int(time.time())
+        self.__init__()
         _models_2_install = []
         _models_2_upgrade = []
-        _time = int(time.time())
+        _dependencies = []
         for _k, _v in values.items():
-            if isinstance(_k, str) and "SERVICE" in _k and _v:
-                _models_2_install.append(_k.split(' ')[1].strip())
-            if isinstance(_k, str) and "UPGRADE" in _k and _v:
-                _models_2_upgrade.append(_k.split(' ')[1].strip())
+            if isinstance(_k, str) and ("SERVICE" in _k or "UPGRADE" in _k) and _v:
+                # Get Model ID
+                _model_id = _k.split(' ')[1].strip()
+                # Append Model ID into models 2 install
+                _models_2_install.append(_model_id)
+                # Search for `dependencies`
+                _model_params = self.latest_services_config["services_params"][_model_id]
+
+                try:
+                    assert _model_params["dependencies"]
+                    _model_deps = _model_params["dependencies"]
+                    _avlbl_assets = self.get_install_assets(get_layout=False, get_ids=True)
+                    _avlbl_upgds = self.get_upgrade_models(get_layout=False, get_ids=True)
+                    _avlbl_models = self.get_install_models(get_layout=False, get_ids=True)
+                    for dep in _model_deps:
+                        if dep in _avlbl_assets + _avlbl_upgds + _avlbl_models:
+                            _dependencies.append(dep)
+                except Exception:
+                    pass
+                print(f"\n\n\n[ DEBUG ] _model_id : {_model_id}\n\n\n")
         _models_2_upgrade += _models_2_install
 
         if not _models_2_upgrade:
@@ -1677,7 +1707,11 @@ class SGui():
                 else:
                     _ok_res = psg.popup_ok(f"This models is currently cocking something...\nPlease Try Later", title="", icon=self.icon)
                     return "-ignore-"
-        _ok_res = psg.popup_ok(f"You will install the following models: {json.dumps(_models_2_upgrade, indent=4)}\nPress Ok to proceed", title="", icon=self.icon)
+        if _dependencies:
+            _ok_res = psg.popup_ok(f"You will install the following models: {json.dumps(_models_2_upgrade, indent=4)}\nThe following are required and will also be installed: {json.dumps(_dependencies, indent=4)}\nPress Ok to proceed", title="", icon=self.icon)
+            _models_2_upgrade += _dependencies
+        else:
+            _ok_res = psg.popup_ok(f"You will install the following models: {json.dumps(_models_2_upgrade, indent=4)}\nPress Ok to proceed", title="", icon=self.icon)
         if not _ok_res:
             return "-ignore-"
         
@@ -2298,7 +2332,7 @@ class SGui():
         #access all the values and if selected add them to a string
         if DEBUG and _event != "windowConfigure":
             print(f" [ DEBUG ] -> event = {_event}")
-            # print(f" [ DEBUG ] -> values = {_values}")
+            print(f" [ DEBUG ] -> values = {_values}")
 
         try:    # Inspired in https://stackoverflow.com/questions/7936572/python-call-a-function-from-string-name
             # Analize Event
