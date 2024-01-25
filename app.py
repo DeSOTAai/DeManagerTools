@@ -122,7 +122,7 @@ class SGui():
         if not self.services_config:
             raise EnvironmentError()
         
-        self.tools_services = self.get_tools_services()
+        self.tools_services, self.assets_services = self.get_tools_services()
         
         #define pysimplegui theme
         psg.theme(self.current_theme)
@@ -306,7 +306,7 @@ class SGui():
         if not (user_tools and user_models) or not (isinstance(user_tools, list) and isinstance(user_models, list)):
             if self.user_config['models']:
                 for _user_service in list(self.user_config['models'].keys()):
-                    if _user_service in self.tools_services:
+                    if _user_service in self.tools_services or _user_service in self.assets_services:
                         if _user_service not in self.user_tools:
                             self.user_tools.append(_user_service)
                     else:
@@ -976,10 +976,14 @@ class SGui():
     #   > Return parsed tools_services {"service":"required", ...}
     def get_tools_services(self) -> dict:
         _tools_services = {}
+        _assets_services = {}
         for service, params in self.latest_services_config["services_params"].items():
-            if not params["submodel"] and (params["service_type"] == "tool" or params["service_type"] == "asset"):
-                _tools_services[service] = params["required"]
-        return _tools_services
+            if not params["submodel"]:
+                if params["service_type"] == "tool":
+                    _tools_services[service] = params["required"]
+                elif params["service_type"] == "asset":
+                    _assets_services[service] = params["required"]
+        return _tools_services, _assets_services
     
     # Edit User Configs
     def edit_user_configs(self, key, value, uninstall=False):
@@ -1079,36 +1083,36 @@ class SGui():
 
     # TAB Constructors
     # TAB 1 - Models Dashboard
-    def get_tools_data(self, search_filter=None):
-        _tools_data = []
-        _tools = []
+    def get_assets_data(self, search_filter=None):
+        _assets_data = []
+        _assets = []
         for _k, _v in self.user_config['models'].items():
             try: # Confirm Model has passed DeRunner BuiltIn Test...
                 assert self.services_config["services_params"][_k]
             except:
                 continue
-            _tool_params = self.services_config["services_params"][_k]
-            if _k not in self.tools_services or _tool_params["submodel"]:
+            _asset_params = self.services_config["services_params"][_k]
+            if _k not in self.assets_services or _asset_params["submodel"]:
                 continue
-            _tool_sys_params = _tool_params[USER_SYS]
-            _tool_desc = _tool_params["short_description"]
-            _tool_status_path = os.path.join(USER_PATH, _tool_sys_params["project_dir"], _tool_sys_params["execs_path"], _tool_sys_params["status"]) if _tool_sys_params["status"] else None
+            _asset_sys_params = _asset_params[USER_SYS]
+            _asset_desc = _asset_params["short_description"]
+            _asset_status_path = os.path.join(USER_PATH, _asset_sys_params["project_dir"], _asset_sys_params["execs_path"], _asset_sys_params["status"]) if _asset_sys_params["status"] else None
 
-            if _tool_status_path==None:
-                _tool_status = "-"
+            if _asset_status_path==None:
+                _asset_status = "-"
             else:
-                _tool_status = self.get_service_status(_tool_status_path).lower()
-                _tool_status = "-" if _tool_status==None else _tool_status
+                _asset_status = self.get_service_status(_asset_status_path).lower()
+                _asset_status = "-" if _asset_status==None else _asset_status
 
             if search_filter:
-                if search_filter.lower() in _k.lower() or search_filter.lower() in _tool_desc.lower():
-                    _tools_data.append([_k, _tool_status, _tool_desc])
-                    _tools.append(_k)
+                if search_filter.lower() in _k.lower() or search_filter.lower() in _asset_desc.lower():
+                    _assets_data.append([_k, _asset_status, _asset_desc])
+                    _assets.append(_k)
             else:
-                _tools_data.append([_k, _tool_status, _tool_desc])
-                _tools.append(_k)
+                _assets_data.append([_k, _asset_status, _asset_desc])
+                _assets.append(_k)
             
-        return _tools_data, _tools
+        return _assets_data, _assets
     def get_models_data(self, search_filter=None):
         _models_data = []
         _models = []
@@ -1118,7 +1122,7 @@ class SGui():
             except:
                 continue
             _model_params = self.services_config["services_params"][_k]
-            if _k in self.tools_services or _model_params["submodel"]:
+            if _k in self.assets_services or _model_params["submodel"]:
                 continue
             _model_sys_params = _model_params[USER_SYS]
             _model_desc = _model_params["short_description"]
@@ -1149,19 +1153,19 @@ class SGui():
         else: # Inspited in https://stackoverflow.com/a/65778327 
             _dashboard_layout = []
             # Tools Table
-            _tools_data, _tools = self.get_tools_data()
-            if _tools_data:
+            _assets_data, _assets = self.get_assets_data()
+            if _assets_data:
                 self.exist_tdash = True
                 _tool_table_header = ["Tool", "Service Status", "Description"]
-                _dashboard_layout.append([psg.Text('Installed Tools', font=self.header_f)])
+                _dashboard_layout.append([psg.Text('Installed Assets', font=self.header_f)])
                 _dashboard_layout.append([psg.Table(
-                    values=_tools_data, 
+                    values=_assets_data, 
                     headings=_tool_table_header, 
                     max_col_width=100,
                     auto_size_columns=True,
                     display_row_numbers=False,
                     justification='center',
-                    num_rows=len(_tools_data),
+                    num_rows=len(_assets_data),
                     alternating_row_color='#000020',
                     select_mode=psg.TABLE_SELECT_MODE_EXTENDED,
                     enable_events=True,
@@ -1195,7 +1199,7 @@ class SGui():
                 )])
             else:
                 self.exist_mdash = False
-            self.set_installed_services(user_tools=_tools, user_models=_models)
+            self.set_installed_services(user_tools=_assets, user_models=_models)
 
             # Handle Stop Manual Services
             _started_malual_services = self.get_started_manual_services()
@@ -1253,7 +1257,7 @@ class SGui():
         self.created_elems[_key_id].append(_res_key)
         
         return _res_key
-    
+
     def set_elem_vis(self, key, identity, visibility):
         tab, cycle = identity
         if isinstance(key, str):
@@ -1293,9 +1297,9 @@ class SGui():
 
         return visibility
 
-    def get_install_tools(self, get_layout=True, search_filter=None):
+    def get_install_assets(self, get_layout=True, search_filter=None):
         '''Available Uninstalled Tools'''
-        _install_tools = []
+        _install_assets = []
         _req_services_header = False
         if get_layout:
             _at_header_event = self.create_elem_key('install_header_at', ("at", 0))
@@ -1303,9 +1307,9 @@ class SGui():
             if "0" in self.install_configs["at"] and "install_header_at" in self.install_configs["at"]["0"]:
                 _at_header_event = self.install_configs["at"]["0"]["install_header_at"]["key"]
             else:
-                return _install_tools       
+                return _install_assets       
              
-        for count, (_desota_serv, _cb_disabled) in enumerate(self.tools_services.items()):
+        for count, (_desota_serv, _cb_disabled) in enumerate(self.assets_services.items()):
             if not self.user_config['models'] or _desota_serv not in self.user_config['models']:
                 _platform_params = self.latest_services_config["services_params"][_desota_serv][USER_SYS]
                 if not "commit" in _platform_params or not _platform_params["commit"]:
@@ -1330,27 +1334,23 @@ class SGui():
                     if not _req_services_header:
                         _req_services_header = True
                         if get_layout:
-                            _install_tools.append([
+                            _install_assets.append([
                                 psg.Text(
-                                    'Available Tools', 
+                                    'Available Assets', 
                                     font=self.header_f, 
                                     key=_at_header_event, 
                                     visible=self.set_elem_vis(_at_header_event, ("at", 0), True)
-                                )   
+                                )
                             ])
                         else:
                             self.set_elem_vis(_at_header_event, ("at", 0), True)
                     if get_layout:
-                        _install_tools.append([
+                        _install_assets.append([
                             psg.Checkbox(_desota_serv, font=self.title_f, default=_cb_disabled, disabled=_cb_disabled, key=_at_serv_event, visible=self.set_elem_vis(_at_serv_event, ("at", count), True)),
-                            psg.Button('Source Code', button_color=("Blue","White"), key=_at_req_event, visible=self.set_elem_vis(_at_req_event, ("at", count), True), pad=(5, 0))
+                            psg.Button('Source Code', button_color=("Blue","White"), key=_at_req_event, visible=self.set_elem_vis(_at_req_event, ("at", count), True), pad=(5, 0)),
+                            psg.Text(f'Description:', font=self.bold_f, pad=(30, 0), key=_at_desc1_event, visible=self.set_elem_vis(_at_desc1_event, ("at", count), True)), 
+                            psg.Text(f'{_desc}', font=self.default_f, key=_at_desc2_event, visible=self.set_elem_vis(_at_desc2_event, ("at", count), True))
                         ])
-                        _install_tools.append(
-                            [
-                                psg.Text(f'Description:', font=self.bold_f, pad=(30, 0), key=_at_desc1_event, visible=self.set_elem_vis(_at_desc1_event, ("at", count), True)), 
-                                psg.Text(f'{_desc}', font=self.default_f, key=_at_desc2_event, visible=self.set_elem_vis(_at_desc2_event, ("at", count), True))
-                            ]
-                        )
                     else:
                         self.set_elem_vis([_at_serv_event, _at_req_event, _at_desc1_event, _at_desc2_event], ("at", count), True)
                 else:
@@ -1369,7 +1369,7 @@ class SGui():
 
         if not get_layout:
             return True if _req_services_header else False
-        return _install_tools
+        return _install_assets
     def get_upgrade_models(self, get_layout=True, search_filter=None):
         '''Upgradable Models / Tools'''
         _upgrade_models = []
@@ -1408,7 +1408,7 @@ class SGui():
                         _upgrade_models_header = True
                         if get_layout:
                             _upgrade_models.append([
-                                psg.Text('Availabe Upgrades', 
+                                psg.Text('Available Upgrades', 
                                         font=self.header_f, 
                                         key=_up_header_event, 
                                         visible=self.set_elem_vis(_up_header_event, ("up", 0), True)
@@ -1461,7 +1461,7 @@ class SGui():
                 return _install_models  
 
         for count, (_k, _v)in enumerate(self.latest_services_config['services_params'].items()):
-            if (self.user_config['models'] and _k in self.user_config['models'] ) or (_v["submodel"] == True) or (_k in self.tools_services):
+            if (self.user_config['models'] and _k in self.user_config['models'] ) or (_v["submodel"] == True) or (_k in self.assets_services):
                 continue
             _platform_params = self.latest_services_config["services_params"][_k][USER_SYS]
             if not "commit" in _platform_params or not _platform_params["commit"]:
@@ -1487,7 +1487,7 @@ class SGui():
                     if get_layout:
                         _install_models.append([
                             psg.Text(
-                                'Available AI Models', 
+                                'Available AI Models',
                                 font=self.header_f, 
                                 key=_am_header_event, 
                                 visible=self.set_elem_vis(_am_header_event, ("am", 0), True)
@@ -1525,18 +1525,18 @@ class SGui():
         if not get_layout:
             return True if _available_models_header else False
         return _install_models
-    
+
     def get_install_layout(self, get_layout=False, search_filter=None):
         '''
         GET LAYOUT ONLY ON CLASS INIT!!! > self.construct_install_tab
         '''
         _install_layout = []
-        # Available Uninstalled Tools
-        _install_tools = self.get_install_tools(get_layout=get_layout, search_filter=search_filter)
+        # Available Uninstalled Assets
+        _install_assets = self.get_install_assets(get_layout=get_layout, search_filter=search_filter)
         
-        if _install_tools:
+        if _install_assets:
             if get_layout:
-                _install_layout += _install_tools
+                _install_layout += _install_assets
                 self.exist_at_sep = True
                 self.at_separator = self.create_elem_key('install_separator_at_up', ("at", 0))
                 _install_layout.append([psg.Text('_'*80, pad=(0, 20), key=self.at_separator, visible=self.set_elem_vis(self.at_separator, ("at", 0), True))])
@@ -2178,11 +2178,11 @@ class SGui():
         if self.exist_tdash:
             if _search_filter.strip() != "":
                 self.mem_dash_search = _search_filter.strip()
-                _tools_data, _tools = self.get_tools_data(search_filter=_search_filter)
+                _assets_data, _tools = self.get_assets_data(search_filter=_search_filter)
             else:
                 self.mem_dash_search = "Search"
-                _tools_data, _tools = self.get_tools_data()
-            self.root['tool_table'].update(values=_tools_data)
+                _assets_data, _tools = self.get_assets_data()
+            self.root['tool_table'].update(values=_assets_data)
             self.set_installed_services(user_tools=_tools)
         if self.exist_mdash:
             if _search_filter.strip() != "":
